@@ -14,7 +14,8 @@ let package = Package(
                 .linkedFramework("CoreAudio"),
                 .linkedFramework("Carbon"),
             ]
-        )
+        ),
+        .testTarget(name: "MacroPadTests", dependencies: ["MacroPad"])
     ],
     swiftLanguageVersions: [.v5]
 )

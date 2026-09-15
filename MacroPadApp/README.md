@@ -1,26 +1,40 @@
-# MacroPad – konfigurátor pro CH552G macro pad (1189:8890)
+# MacroPad — macOS konfigurátor
 
-Nativní macOS appka (SwiftUI). Zapisuje makra do padu přes USB (IOKit) a navíc
-umí **ztišení mikrofonu**: pad pošle klávesu F18, appka ji zachytí (globální hotkey,
-bez oprávnění Přístupnost) a přepne mute na výchozím vstupu (CoreAudio). Stav je vidět
-v menu baru, při přepnutí se zobrazí HUD.
+Nativní SwiftUI aplikace pro XIAO/ZMK přes Bluetooth a původní CH552 přes USB.
 
-## Build
-    ./build.sh          # → dist/MacroPad.app  (vyžaduje Xcode Command Line Tools)
-    open dist/MacroPad.app
+## XIAO přes Bluetooth
 
-## Použití
-1. Připoj pad **datovým** USB kabelem (některé USB‑C↔C kabely jsou jen nabíjecí).
-2. U každé klávesy / směru knobu vyber typ: Zkratka (nahraj stiskem), Media, Myš, 🎙 Mikrofon.
-3. **Zapsat do padu** (⌘S). Konfigurace se ukládá do
-   `~/Library/Application Support/MacroPad/config.json` (Export/Import v toolbaru).
-4. Pro mute mikrofonu musí appka běžet – zaškrtni „Spouštět po přihlášení“.
+1. Jednou nahraj firmware s podporou konfigurátoru přes USB. Dvakrát rychle
+   stiskni RESET na XIAO a zkopíruj nový `macropad-…-zmk.uf2` na bootloader disk.
+2. Spáruj **MacroPad** s Macem v Nastavení systému → Bluetooth.
+3. Spusť appku, zvol **XIAO · Bluetooth**, klikni **Najít MacroPad** a potom
+   **Připojit a načíst**. Povol macOS přístup aplikace k Bluetooth.
+4. Změň klávesy, stisk nebo směry kolečka. Podporované jsou sekvence až pěti
+   zkratek, mediální klávesy, kliknutí/scroll myši a mute mikrofonu.
+5. Současně stiskni všechny tři klávesy na padu. Do 60 sekund klikni
+   **Zapsat do padu** (⌘S), případně šipku u jedné klávesy.
+6. Appka čeká na uložení a zpětným čtením ověří hodnoty. Makra fungují i po restartu
+   a bez appky; mute mikrofonu potřebuje appku spuštěnou v liště.
 
-## Protokol
-Stejný jako [ch57x-keyboard-tool](https://github.com/kriomant/ch57x-keyboard-tool) (model 0x8890):
-64‑bajtové interrupt pakety na interface 1 / EP 0x02:
-`03 fe <layer> 01 01` → `03 <key> <layer<<4|typ> …` → `03 aa aa`.
-Klávesy 1–3 = ID 1–3, knob ← / stisk / → = ID 13 / 14 / 15.
+Konfigurátor upravuje základní vrstvu. Podržení kolečka a BT vrstva zůstávají
+pevné, aby bylo vždy možné přepnout profil nebo vymazat párování.
+Pokud zápis vypadne, některé položky již mohou být uložené: načti pad znovu.
+Pokud se po aktualizaci neobjeví služba, zapomeň MacroPad v macOS a znovu jej spáruj.
+USB může dál napájet pad; konfigurační spojení je Bluetooth i při USB HID výstupu.
 
-## Alternativy v repu
-- `../macropad/` – webové UI + Python backend (libusb) a CLI `macropad.py`.
+## Původní CH552
+
+Zvol **CH552 · USB**, připoj datový kabel a použij původní zápis maker a LED.
+Konfigurace jsou oddělené: `~/Library/Application Support/MacroPad/config.json`
+a `config-xiao.json`. Export/import pracuje s právě zvoleným zařízením.
+
+## Build a test
+
+```sh
+swift test
+./build.sh
+open dist/MacroPad.app
+```
+
+macOS 13+, Xcode Command Line Tools. Protokol BLE je popsán v
+[`../zmk-config-macropad/docs/ble-protocol.md`](../zmk-config-macropad/docs/ble-protocol.md).

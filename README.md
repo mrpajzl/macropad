@@ -1,9 +1,9 @@
 # MacroPad
 
 Tři klávesy a otočný encoder EC11, přestavěné na **Seeed XIAO nRF52840**.
-Firmware ZMK funguje přes USB i Bluetooth; macOS aplikace zajišťuje ztišení mikrofonu.
+Firmware ZMK funguje přes USB i Bluetooth; macOS aplikace zapisuje makra bezdrátově a zajišťuje ztišení mikrofonu.
 
-## Ovládání
+## Výchozí ovládání
 
 Při pohledu s encoderem vpravo:
 
@@ -17,6 +17,7 @@ Při pohledu s encoderem vpravo:
 | Držení encoderu + U1 / U2 | Bluetooth profil 0 / 1 |
 | Držení encoderu + U3 | Vymazat párování aktivního profilu |
 | Držení encoderu + otočení | Jas |
+| Všechny tři klávesy současně | Odemknout bezdrátový zápis na 60 sekund |
 
 Hotové soubory: [releases projektu](https://github.com/mrpajzl/macropad/releases).
 
@@ -31,8 +32,17 @@ open dist/MacroPad.app
 
 Vyžaduje macOS 13+ a Xcode Command Line Tools. Aplikace musí běžet pro F18 mute;
 automatické spouštění lze zapnout v jejím nastavení. USB/Bluetooth klávesy a hlasitost
-fungují samostatně. Konfigurátor maker v aplikaci patří původnímu CH552 padu;
-mapování XIAO se mění v ZMK keymap a přehráním firmwaru.
+fungují samostatně.
+
+### Bezdrátová změna maker
+
+Po jednorázovém nahrání firmwaru v0.2 přes USB spáruj MacroPad s Macem.
+V appce vyber **XIAO · Bluetooth → Najít MacroPad → Připojit a načíst**.
+Uprav klávesy a kolečko, stiskni všechny tři klávesy současně a do 60 sekund
+klikni **Zapsat do padu**. Appka ověří uložené hodnoty zpětným čtením.
+Nastavení zůstává v padu po restartu. Podržení kolečka pro správu Bluetooth je pevné.
+Původní CH552 konfigurátor zůstává dostupný pod **CH552 · USB**.
+Podrobnosti: [návod appky](MacroPadApp/README.md).
 
 ## Firmware
 
@@ -68,7 +78,7 @@ Baterie zatím není připojena, zařízení je napájeno přes USB-C.
 
 ## Obsah
 
-- `MacroPadApp/`: SwiftUI aplikace, mikrofon a původní USB konfigurátor.
+- `MacroPadApp/`: SwiftUI aplikace, bezdrátový konfigurátor XIAO, mikrofon a USB konfigurátor CH552.
 - `zmk-config-macropad/`: ZMK v0.3.0, zapojení a keymap.
 - `macropad/`: původní Python CLI a webový konfigurátor CH552.
 - `xiao-test/`: CircuitPython test zapojení a obnovovací firmware.

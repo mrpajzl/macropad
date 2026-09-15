@@ -4,12 +4,13 @@
   <key>CFBundleName</key><string>MacroPad</string>
   <key>CFBundleDisplayName</key><string>MacroPad</string>
   <key>CFBundleIdentifier</key><string>cz.zraly.macropad</string>
-  <key>CFBundleVersion</key><string>1.0</string>
-  <key>CFBundleShortVersionString</key><string>1.0</string>
+  <key>CFBundleVersion</key><string>2</string>
+  <key>CFBundleShortVersionString</key><string>0.2.0</string>
   <key>CFBundleExecutable</key><string>MacroPad</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>
   <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
+  <key>NSBluetoothAlwaysUsageDescription</key><string>MacroPad používá Bluetooth pro čtení a zápis nastavení vašeho bezdrátového padu.</string>
 </dict></plist>

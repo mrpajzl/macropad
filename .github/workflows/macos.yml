@@ -7,6 +7,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Test BLE protocol
+        run: swift test --package-path MacroPadApp
       - name: Build and sign
         run: ./MacroPadApp/build.sh
       - name: Package

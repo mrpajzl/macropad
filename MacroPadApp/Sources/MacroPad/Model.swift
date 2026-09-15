@@ -121,13 +121,14 @@ struct PadConfig: Codable {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("config.json")
     }()
-    static func load() -> PadConfig {
-        guard let d = try? Data(contentsOf: fileURL), let c = try? JSONDecoder().decode(PadConfig.self, from: d) else { return PadConfig() }
+    static let xiaoFileURL = fileURL.deletingLastPathComponent().appendingPathComponent("config-xiao.json")
+    static func load(from url: URL = fileURL) -> PadConfig {
+        guard let d = try? Data(contentsOf: url), let c = try? JSONDecoder().decode(PadConfig.self, from: d) else { return PadConfig() }
         return c
     }
-    func save() {
+    func save(to url: URL = PadConfig.fileURL) {
         let enc = JSONEncoder(); enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try? enc.encode(self).write(to: PadConfig.fileURL)
+        try? enc.encode(self).write(to: url)
     }
 }
 

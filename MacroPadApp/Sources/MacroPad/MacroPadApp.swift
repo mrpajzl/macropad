@@ -15,7 +15,7 @@ struct MacroPadApp: App {
             Button(mic.muted ? "Zapnout mikrofon" : "Vypnout mikrofon") { mic.toggle() }
                 .keyboardShortcut("m", modifiers: [.command, .shift])
             Divider()
-            Text(state.connected ? "CH552 pad připojen" : "CH552 konfigurátor: pad nepřipojen").foregroundStyle(.secondary)
+            Text(state.connectionLabel).foregroundStyle(.secondary)
             OpenMainWindowButton()
             Divider()
             Button("Ukončit MacroPad") { NSApp.terminate(nil) }.keyboardShortcut("q")

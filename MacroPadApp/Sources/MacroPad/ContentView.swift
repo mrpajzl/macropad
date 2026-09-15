@@ -4,6 +4,7 @@ import ServiceManagement
 struct ContentView: View {
     @EnvironmentObject var state: AppState
     @ObservedObject var mic = MicController.shared
+    @State private var confirmRead = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -11,7 +12,10 @@ struct ContentView: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    Text("Konfigurátor zapisuje pouze do původního CH552 padu. XIAO/ZMK používá keymap ve firmwaru; ztišení mikrofonu funguje pro oba přes F18.")
+                    if state.target == .xiao { wirelessControls }
+                    Text(state.target == .xiao
+                         ? "Před zápisem stiskni současně všechny tři klávesy. Zápis se odemkne na 60 sekund. Podržení kolečka dál ovládá Bluetooth profily."
+                         : "Původní CH552 konfigurátor přes USB.")
                         .font(.callout).foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -24,11 +28,16 @@ struct ContentView: View {
                     logView
                 }
                 .padding(20)
+                .disabled(state.busy || state.ble.reading || state.ble.connecting)
             }
         }
         .frame(minWidth: 860, minHeight: 640)
         .toolbar {
             ToolbarItemGroup {
+                Picker("Zařízení", selection: Binding(get: { state.target }, set: { state.selectTarget($0) })) {
+                    ForEach(AppState.Target.allCases) { Text($0.title).tag($0) }
+                }.frame(width: 170).disabled(state.busy || state.ble.connecting || state.ble.reading)
+                if state.target == .ch552 {
                 Picker("Vrstva", selection: Binding(get: { state.config.layer }, set: { state.config.layer = $0; state.dirty = Set(Slot.all.map(\.id)) })) {
                     Text("Vrstva 1").tag(UInt8(0)); Text("Vrstva 2").tag(UInt8(1)); Text("Vrstva 3").tag(UInt8(2))
                 }.frame(width: 110)
@@ -36,24 +45,57 @@ struct ContentView: View {
                     Picker("LED režim", selection: $state.ledMode) { ForEach(0..<6) { Text($0 == 0 ? "Vypnuto" : "Režim \($0)").tag(UInt8($0)) } }
                     Button("Nastavit LED") { state.setLED() }
                 } label: { Label("LED", systemImage: "lightbulb") }
+                }
                 Menu {
                     Button("Export JSON…") { state.exportJSON() }
                     Button("Import JSON…") { state.importJSON() }
                     Divider()
-                    Button("Zobrazit config.json ve Finderu") { NSWorkspace.shared.activateFileViewerSelecting([PadConfig.fileURL]) }
+                    Button("Zobrazit config.json ve Finderu") { NSWorkspace.shared.activateFileViewerSelecting([state.configURL]) }
                 } label: { Label("Soubor", systemImage: "square.and.arrow.down") }
+                .disabled(state.busy || state.ble.reading || state.ble.connecting)
                 Button { state.writeAll() } label: { Label("Zapsat do padu", systemImage: "arrow.up.circle.fill") }
-                    .disabled(!state.connected || state.busy)
+                    .disabled(!state.connected || state.busy || state.ble.reading)
                     .keyboardShortcut("s", modifiers: .command)
                     .buttonStyle(.borderedProminent)
             }
         }
     }
 
+    var wirelessControls: some View {
+        GroupBox("Bezdrátový MacroPad") {
+            VStack(alignment: .leading, spacing: 10) {
+                if state.connected {
+                    HStack {
+                        Button("Načíst z padu") {
+                            if state.dirty.isEmpty { state.readWireless() } else { confirmRead = true }
+                        }
+                        Button("Odpojit") { state.ble.disconnect() }
+                    }
+                } else {
+                    Button(state.ble.searching ? "Hledám…" : "Najít MacroPad") { state.ble.search() }
+                        .disabled(state.ble.searching || state.ble.connecting)
+                    ForEach(state.ble.devices, id: \.identifier) { device in
+                        HStack {
+                            Text(device.name ?? "MacroPad")
+                            Text(String(device.identifier.uuidString.prefix(8))).font(.caption).foregroundStyle(.secondary)
+                            Button("Připojit a načíst") { state.ble.connect(device) }.disabled(state.ble.connecting)
+                        }
+                    }
+                    Text("Při prvním použití nahraj nový firmware přes USB. Potom pad spáruj s Macem v nastavení Bluetooth.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(6)
+        }
+        .confirmationDialog("Nahradit rozepsané změny nastavením z padu?", isPresented: $confirmRead) {
+            Button("Načíst z padu", role: .destructive) { state.readWireless() }
+            Button("Zrušit", role: .cancel) {}
+        }
+    }
+
     var header: some View {
         HStack(spacing: 10) {
             Circle().fill(state.connected ? .green : .red).frame(width: 10, height: 10)
-            Text(state.connected ? "Pad připojen (1189:8890)" : "Původní CH552 pad nepřipojen")
+            Text(state.connectionLabel)
                 .font(.callout).foregroundStyle(.secondary)
             Spacer()
             if !state.status.isEmpty {
@@ -167,7 +209,7 @@ struct SlotCard: View {
                 Spacer()
                 if state.dirty.contains(slot.id) { Text("nezapsáno").font(.caption2).foregroundStyle(.orange) }
                 Button { state.write(slots: [slot.id]) } label: { Image(systemName: "arrow.up.circle") }
-                    .buttonStyle(.borderless).help("Zapsat jen tuto klávesu").disabled(!state.connected || state.busy)
+                    .buttonStyle(.borderless).help("Zapsat jen tuto klávesu").disabled(!state.connected || state.busy || state.ble.reading)
             }
             Picker("", selection: Binding(get: { macro.kind }, set: { k in state.update(slot.id) { $0.kind = k } })) {
                 ForEach(MacroKind.allCases) { Text($0.title).tag($0) }
