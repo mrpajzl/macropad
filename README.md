@@ -18,6 +18,8 @@ Při pohledu s encoderem vpravo:
 | Držení encoderu + U3 | Vymazat párování aktivního profilu |
 | Držení encoderu + otočení | Jas |
 
+Hotové soubory: [releases projektu](https://github.com/mrpajzl/macropad/releases).
+
 ## Spuštění na Macu
 
 ```sh

@@ -13,8 +13,22 @@
 - ZMK je připnuté na v0.3.0 a vlastní shield je registrován jako Zephyr modul.
 - GitHub Actions staví firmware, settings_reset a samostatně macOS aplikaci.
 
-## Právě probíhá
-- První ověření ZMK přes GitHub Actions a flash připojené desky.
+## Dokončeno
+- Oba ZMK buildy včetně `settings_reset` a macOS CI prošly.
+- Do XIAO nahrán `macropad-seeeduino_xiao_ble-zmk.uf2` z běhu
+  https://github.com/mrpajzl/zmk-config-macropad/actions/runs/35011875367
+  (commit `6f17b6a`; následující commit mění pouze README).
+- SHA-256 UF2: `2493dc6814416c4a18583cf09d63f48cbe06475ab897ddcc9c574aac2fa6a10f`.
+- `hidutil list` potvrzuje USB HID klávesnici MacroPad, VID:PID `1d50:615e`.
+- Přechod z CircuitPython do bootloaderu funguje přes konzoli:
+  `microcontroller.on_next_reset(microcontroller.RunMode.UF2); microcontroller.reset()`.
+  Před resetem odpoj souborový systém CIRCUITPY. Režim BOOTLOADER zde nestačil.
+- Kopírování skončilo chybou rozšířených atributů po restartu desky;
+  úspěšné nahrání bylo následně potvrzeno novou identitou USB a HID registrací.
+- MacroPad.app spuštěna, tlačítkem ověřeno vypnutí a zapnutí mikrofonu.
+- Syntetická F18 přes automatizaci nebyla potvrzena; fyzickou klávesu je potřeba otestovat.
+- Hotové UF2 lokálně v `artifacts/complete-firmware/`, build aplikace v
+  `MacroPadApp/dist/MacroPad.app` (generované soubory nejsou v Gitu).
 
 ## Fyzicky neověřeno
 - Reálné stisky s novým ZMK firmwarem a Bluetooth párování.

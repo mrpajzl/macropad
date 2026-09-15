@@ -13,6 +13,8 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     Text("Konfigurátor zapisuje pouze do původního CH552 padu. XIAO/ZMK používá keymap ve firmwaru; ztišení mikrofonu funguje pro oba přes F18.")
                         .font(.callout).foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     padPreview
                     sectionTitle("Klávesy")
                     HStack(alignment: .top, spacing: 12) { ForEach(state.config.physicalKeys) { SlotCard(slot: $0, recorder: state.recorder) } }
