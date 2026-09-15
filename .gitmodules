@@ -1,0 +1,3 @@
+[submodule "zmk-config-macropad"]
+	path = zmk-config-macropad
+	url = https://github.com/mrpajzl/zmk-config-macropad.git

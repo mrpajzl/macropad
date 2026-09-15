@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<title>MacroPad CH552G – konfigurátor</title>
+<style>
+  :root{--bg:#111;--card:#1c1c1e;--acc:#4f8cff;--ok:#3ddc84;--err:#ff5f5f;--fg:#eee;--mut:#888}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.4 -apple-system,system-ui,sans-serif;background:var(--bg);color:var(--fg)}
+  header{display:flex;gap:12px;align-items:center;padding:14px 20px;border-bottom:1px solid #2a2a2a}
+  header h1{font-size:18px;margin:0;flex:1}
+  button{background:#2a2a2e;color:var(--fg);border:1px solid #3a3a3e;border-radius:8px;padding:8px 14px;cursor:pointer;font:inherit}
+  button:hover{border-color:var(--acc)}
+  button.primary{background:var(--acc);border-color:var(--acc);color:#fff;font-weight:600}
+  button:disabled{opacity:.4;cursor:default}
+  select,input{background:#2a2a2e;color:var(--fg);border:1px solid #3a3a3e;border-radius:6px;padding:6px 8px;font:inherit}
+  #status{font-size:13px;color:var(--mut)}
+  #status.ok{color:var(--ok)} #status.err{color:var(--err)}
+  main{padding:20px;max-width:1100px;margin:0 auto}
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:14px}
+  .knobrow{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .card{background:var(--card);border:1px solid #2a2a2e;border-radius:12px;padding:14px}
+  .card h3{margin:0 0 10px;font-size:14px;color:var(--mut);display:flex;justify-content:space-between;align-items:center}
+  .card h3 span.dirty{color:#ffb84f;font-size:11px}
+  .row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+  .capture{flex:1;min-height:42px;border:2px dashed #3a3a3e;border-radius:8px;padding:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;cursor:text;color:var(--mut)}
+  .capture.active{border-color:var(--acc);color:var(--fg)}
+  .chip{background:#2f3a55;border:1px solid #3d4d75;border-radius:6px;padding:3px 8px;font-size:13px;font-family:ui-monospace,Menlo,monospace}
+  .chip b{cursor:pointer;margin-left:6px;color:var(--mut)}
+  .small{font-size:12px;color:var(--mut)}
+  .toolbar{display:flex;gap:10px;align-items:center;margin:14px 0;flex-wrap:wrap}
+  .toolbar .spacer{flex:1}
+  #log{font:12px ui-monospace,Menlo,monospace;color:var(--mut);white-space:pre-wrap;max-height:160px;overflow:auto;background:#0c0c0c;border-radius:8px;padding:10px;margin-top:14px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎛️ MacroPad CH552G</h1>
+  <span id="status">Nepřipojeno</span>
+  <button id="connect" class="primary">Znovu hledat</button>
+</header>
+<main>
+  <div class="toolbar">
+    <label>Vrstva <select id="layer"><option value="0">1</option><option value="1">2</option><option value="2">3</option></select></label>
+    <label>LED <select id="led"><option value="">—</option><option value="0">vyp</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option></select></label>
+    <button id="ledBtn" disabled>Nastavit LED</button>
+    <span class="spacer"></span>
+    <button id="export">Export JSON</button>
+    <button id="import">Import JSON</button>
+    <input type="file" id="file" accept=".json" hidden>
+    <button id="writeAll" class="primary" disabled>⬆ Zapsat všechno do padu</button>
+  </div>
+
+  <div class="pad" id="keys"></div>
+  <div class="knobrow" id="knob"></div>
+
+  <p class="small">Klik do rámečku → stiskni zkratku (až 5 stisků za sebou, např. <span class="chip">Ctrl+C</span> <span class="chip">Enter</span>). Cmd na Macu = Win. Křížkem ✕ smažeš jednotlivý stisk.</p>
+  <div id="log"></div>
+</main>
+
+<script>
+// ---------- HID usage tabulka (KeyboardEvent.code -> HID usage id) ----------
+const CODES = {};
+"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach((c,i)=>CODES["Key"+c]=4+i);
+"1234567890".split("").forEach((c,i)=>CODES["Digit"+c]=30+i);
+Object.assign(CODES,{Enter:40,Escape:41,Backspace:42,Tab:43,Space:44,Minus:45,Equal:46,BracketLeft:47,BracketRight:48,Backslash:49,
+ Semicolon:51,Quote:52,Backquote:53,Comma:54,Period:55,Slash:56,CapsLock:57,PrintScreen:70,ScrollLock:71,Pause:72,Insert:73,Home:74,
+ PageUp:75,Delete:76,End:77,PageDown:78,ArrowRight:79,ArrowLeft:80,ArrowDown:81,ArrowUp:82,NumLock:83,NumpadDivide:84,NumpadMultiply:85,
+ NumpadSubtract:86,NumpadAdd:87,NumpadEnter:88,Numpad0:98,NumpadDecimal:99,IntlBackslash:100,ContextMenu:101});
+for(let i=1;i<=12;i++)CODES["F"+i]=57+i;
+for(let i=13;i<=24;i++)CODES["F"+i]=104+(i-13);
+for(let i=1;i<=9;i++)CODES["Numpad"+i]=88+i;
+const NAMES = Object.fromEntries(Object.entries(CODES).map(([k,v])=>[v,k.replace(/^Key|^Digit/,"")]));
+
+const MODS = [["Ctrl",1],["Shift",2],["Alt",4],["Cmd/Win",8],["RCtrl",16],["RShift",32],["RAlt",64],["RCmd/RWin",128]];
+const modStr = m => MODS.filter(([,b])=>m&b).map(([n])=>n);
+
+const MEDIA = {"Hlasitost +":0xe9,"Hlasitost −":0xea,"Ztlumit":0xe2,"Play/Pause":0xcd,"Stop":0xb7,"Další skladba":0xb5,"Předchozí skladba":0xb6,
+ "Jas +":0x6f,"Jas −":0x70,"Kalkulačka":0x192,"Zámek obrazovky":0x19e,"Web domů":0x223,"Web zpět":0x224,"Web vpřed":0x225,"Oblíbené":0x182};
+const MOUSE = {"Levé tlačítko":[1,0,0,0],"Pravé tlačítko":[2,0,0,0],"Prostřední tlačítko":[4,0,0,0],"Kolečko ↑":[0,0,0,1],"Kolečko ↓":[0,0,0,0xff]};
+
+// ---------- model ----------
+// key ids: tlačítka 1..3, knob: 13 = ccw, 14 = press, 15 = cw
+const SLOTS = [
+  {id:1,name:"Klávesa 1",grp:"keys"},{id:2,name:"Klávesa 2",grp:"keys"},{id:3,name:"Klávesa 3",grp:"keys"},
+  {id:13,name:"Knob ← (doleva)",grp:"knob"},{id:14,name:"Knob – stisk",grp:"knob"},{id:15,name:"Knob → (doprava)",grp:"knob"},
+];
+let cfg = JSON.parse(localStorage.getItem("macropad-cfg")||"null") || Object.fromEntries(SLOTS.map(s=>[s.id,{type:"kbd",keys:[],media:0xe9,mouse:"Levé tlačítko"}]));
+cfg[14].type ??= "kbd";
+const save = ()=>localStorage.setItem("macropad-cfg",JSON.stringify(cfg));
+
+// ---------- protokol (kompatibilní s ch57x-keyboard-tool, model 1189:8890) ----------
+function encode(layer, keyId, m){
+  const msgs=[[0x03,0xfe,layer+1,1,1]];
+  const kl=((layer+1)<<4);
+  if(m.type==="kbd"){
+    const presses=[[0,0],...m.keys.slice(0,5).map(k=>[k.mod,k.code])]; // prázdný stisk na začátku (vyžaduje firmware)
+    presses.forEach(([mod,code],i)=>msgs.push([0x03,keyId,kl|1,m.keys.length,i,mod,code,0,0]));
+  }else if(m.type==="media"){
+    msgs.push([0x03,keyId,kl|2,m.media&0xff,m.media>>8,0,0,0,0]);
+  }else{
+    const [btn,dx,dy,wh]=MOUSE[m.mouse]; msgs.push([0x03,keyId,kl|3,btn,dx,dy,wh,0,0]);
+  }
+  msgs.push([0x03,0xaa,0xaa]);
+  return msgs;
+}
+const encodeLed = mode => [[0x03,0xa1,0x01],[0x03,0xb0,0x18,mode],[0x03,0xaa,0xa1]];
+
+// ---------- backend (server.py, libusb) ----------
+let dev=null;
+const $=s=>document.querySelector(s);
+const log=t=>{const l=$("#log");l.textContent+=t+"\n";l.scrollTop=l.scrollHeight};
+const setStatus=(t,c="")=>{const s=$("#status");s.textContent=t;s.className=c};
+
+async function connect(){
+  let r;
+  try{ r=await (await fetch("/api/status")).json(); }
+  catch(e){ setStatus("Backend neběží – spusť: python3 server.py","err"); return; }
+  if(!r.connected){ dev=null; setStatus("Pad nenalezen (1189:8890) – zkontroluj kabel (musí být datový)","err"); setEnabled(false); return; }
+  dev=r.name; setStatus("Připojeno · "+r.name,"ok"); setEnabled(true); log("Připojeno: "+r.name);
+}
+function setEnabled(on){ $("#writeAll").disabled=!on; $("#ledBtn").disabled=!on; document.querySelectorAll(".writeOne").forEach(b=>b.disabled=!on); }
+async function send(msgs){
+  msgs.forEach(m=>log("→ "+m.map(b=>b.toString(16).padStart(2,"0")).join(" ")));
+  const r=await fetch("/api/write",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({packets:msgs})});
+  const j=await r.json(); if(!r.ok) throw new Error(j.error||r.statusText);
+}
+async function writeSlot(id){
+  if(!dev)return;
+  const layer=+$("#layer").value;
+  try{ await send(encode(layer,id,cfg[id])); markDirty(id,false); setStatus("Zapsáno: "+SLOTS.find(s=>s.id===id).name,"ok"); }
+  catch(e){ setStatus("Chyba zápisu: "+e.message,"err"); log("!! "+e); }
+}
+async function writeAll(){ for(const s of SLOTS) await writeSlot(s.id); setStatus("Vše zapsáno ✔","ok"); }
+
+// ---------- UI ----------
+function render(){
+  for(const s of SLOTS){
+    const m=cfg[s.id];
+    const el=document.createElement("div"); el.className="card"; el.dataset.id=s.id;
+    el.innerHTML=`<h3>${s.name}<span class="dirty"></span></h3>
+      <div class="row">
+        <select class="type"><option value="kbd">Klávesová zkratka</option><option value="media">Media</option><option value="mouse">Myš</option></select>
+        <button class="writeOne" disabled title="Zapsat jen tuto klávesu">⬆</button>
+      </div>
+      <div class="row kbd"><div class="capture" tabindex="0"></div></div>
+      <div class="row media"><select class="mediaSel">${Object.keys(MEDIA).map(k=>`<option>${k}</option>`).join("")}</select></div>
+      <div class="row mouse"><select class="mouseSel">${Object.keys(MOUSE).map(k=>`<option>${k}</option>`).join("")}</select></div>`;
+    $("#"+s.grp).appendChild(el);
+    const type=el.querySelector(".type"), cap=el.querySelector(".capture");
+    type.value=m.type;
+    el.querySelector(".mediaSel").value=Object.keys(MEDIA).find(k=>MEDIA[k]===m.media)||"Hlasitost +";
+    el.querySelector(".mouseSel").value=m.mouse;
+    const show=()=>{for(const t of ["kbd","media","mouse"])el.querySelector(".row."+t).style.display=m.type===t?"":"none"};
+    const drawKeys=()=>{cap.innerHTML=m.keys.length?m.keys.map((k,i)=>`<span class="chip">${[...modStr(k.mod),NAMES[k.code]||("0x"+k.code.toString(16))].join("+")}<b data-i="${i}">✕</b></span>`).join(""):"klikni a stiskni zkratku…"};
+    type.onchange=()=>{m.type=type.value;show();dirty()};
+    el.querySelector(".mediaSel").onchange=e=>{m.media=MEDIA[e.target.value];dirty()};
+    el.querySelector(".mouseSel").onchange=e=>{m.mouse=e.target.value;dirty()};
+    el.querySelector(".writeOne").onclick=()=>writeSlot(s.id);
+    cap.onclick=e=>{ if(e.target.dataset.i!=null){m.keys.splice(+e.target.dataset.i,1);drawKeys();dirty()} else cap.focus(); };
+    cap.onfocus=()=>cap.classList.add("active"); cap.onblur=()=>cap.classList.remove("active");
+    cap.onkeydown=e=>{
+      e.preventDefault();
+      let mod=(e.ctrlKey?1:0)|(e.shiftKey?2:0)|(e.altKey?4:0)|(e.metaKey?8:0);
+      if(/^(Control|Shift|Alt|Meta)/.test(e.code))return;         // čekej na hlavní klávesu
+      const code=CODES[e.code]; if(code==null){log("Neznámá klávesa: "+e.code);return}
+      if(m.keys.length>=5){setStatus("Max 5 stisků na klávesu","err");return}
+      m.keys.push({mod,code}); drawKeys(); dirty();
+    };
+    const dirty=()=>{save();markDirty(s.id,true)};
+    show(); drawKeys();
+  }
+}
+function markDirty(id,on){document.querySelector(`.card[data-id="${id}"] .dirty`).textContent=on?"● nezapsáno":""}
+
+$("#connect").onclick=()=>connect().catch(e=>{setStatus("Chyba: "+e.message,"err");log("!! "+e)});
+$("#writeAll").onclick=writeAll;
+$("#ledBtn").onclick=()=>{const v=$("#led").value;if(v!==""&&dev)send(encodeLed(+v)).catch(e=>log("!! "+e))};
+$("#export").onclick=()=>{const a=document.createElement("a");a.href="data:application/json,"+encodeURIComponent(JSON.stringify(cfg,null,2));a.download="macropad.json";a.click()};
+$("#import").onclick=()=>$("#file").click();
+$("#file").onchange=async e=>{cfg=JSON.parse(await e.target.files[0].text());save();location.reload()};
+render();
+connect(); setInterval(()=>{ if(!dev) connect(); },3000);
+</script>
+</body>
+</html>
