@@ -1,7 +1,7 @@
 # Bezdrátový konfigurátor — 15. 9. 2026
 
 - Appka i firmware jsou sloučené do `main` na GitHubu.
-- Předběžný balíček: release `v0.2.0-rc1` (hardware ještě čeká na instalaci).
+- Předběžný balíček: release `v0.2.0-rc1` (firmware nahrán, BLE zápis ještě neověřen).
 - XIAO má vlastní šifrovanou GATT službu pro šest konfigurovatelných maker.
 - Zápis odemkne současný stisk všech tří kláves na 60 sekund.
 - Data se ukládají do Zephyr settings a aplikace je ověřuje zpětným čtením.
@@ -12,10 +12,15 @@
 - Host C test a Linux ASan/UBSan test prošly.
 - UF2: `artifacts/wireless-config/final-firmware/macropad-seeeduino_xiao_ble-zmk.uf2`.
 - Nová appka: `MacroPadApp/dist/MacroPad.app`.
-- Dokončit fyzicky: jednou flashnout nové UF2, spárovat, ověřit zamčený zápis,
+- Nové UF2 bylo nahráno na ověřený disk XIAO-SENSE (Board-ID Seeed_XIAO_nRF52840_Sense).
+- SHA-256: `74e8810f29993287a3bdc8adedcc98627d2f4bce5e19f4693dc253c751764964`.
+- Zápis a fsync proběhly bez chyby, bootloader disk zmizel a `hidutil list`
+  znovu ukazuje MacroPad USB HID, VID:PID `1d50:615e`.
+- Dokončit fyzicky: spárovat Bluetooth, ověřit zamčený zápis,
   odemknutý zápis, načtení, přetrvání po restartu a skutečné chování kláves.
-- Uživatel byl požádán o dvojstisk RESET. Při poslední kontrole ještě nebyl
-  připojený bootloader disk. Bez fyzického kroku nelze instalaci dokončit.
+- Uživatel potvrdil bootloader disk a instalace firmwaru je dokončená.
+- CUA po resetu relace stále hlásí „native pipe closed“; připojení v appce musí
+  zatím provést uživatel přes XIAO · Bluetooth → Najít MacroPad → Připojit a načíst.
 - CUA nebylo dostupné a snímek displeje se nepodařilo získat; vzhled UI není vizuálně ověřen.
 - Lokální ASan runtime se zablokoval při inicializaci na macOS 27 beta;
   běžný lokální C test a Linux CI se sanitizéry prošly.
