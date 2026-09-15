@@ -17,9 +17,9 @@ struct ContentView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                     padPreview
                     sectionTitle("Klávesy")
-                    HStack(alignment: .top, spacing: 12) { ForEach(state.config.physicalKeys) { SlotCard(slot: $0, recorder: state.recorder) } }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), alignment: .top)], alignment: .leading, spacing: 12) { ForEach(state.config.physicalKeys) { SlotCard(slot: $0, recorder: state.recorder) } }
                     sectionTitle("Otočný knob")
-                    HStack(alignment: .top, spacing: 12) { ForEach(Slot.knob) { SlotCard(slot: $0, recorder: state.recorder) } }
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 320), alignment: .top)], alignment: .leading, spacing: 12) { ForEach(Slot.knob) { SlotCard(slot: $0, recorder: state.recorder) } }
                     micSection
                     logView
                 }
