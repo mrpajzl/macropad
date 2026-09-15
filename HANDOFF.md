@@ -1,13 +1,16 @@
 # Bezdrátový konfigurátor — 15. 9. 2026
 
-- Appka i firmware mají větev `wireless-config` na GitHubu.
+- Appka i firmware jsou sloučené do `main` na GitHubu.
+- Předběžný balíček: release `v0.2.0-rc1` (hardware ještě čeká na instalaci).
 - XIAO má vlastní šifrovanou GATT službu pro šest konfigurovatelných maker.
 - Zápis odemkne současný stisk všech tří kláves na 60 sekund.
 - Data se ukládají do Zephyr settings a aplikace je ověřuje zpětným čtením.
 - Appka načítá skutečnou konfiguraci při připojení, podporuje jeden slot i všechny,
   hlásí výpadky/timeouty a uchovává CH552 a XIAO soubory odděleně.
 - Lokální release build aplikace a čtyři XCTest testy prošly.
-- Firmware build prošel; host C test a Linux ASan/UBSan test prošly.
+- Firmware build 35017834407 a macOS build 35017836287 prošly v GitHub Actions.
+- Host C test a Linux ASan/UBSan test prošly.
+- UF2: `artifacts/wireless-config/final-firmware/macropad-seeeduino_xiao_ble-zmk.uf2`.
 - Nová appka: `MacroPadApp/dist/MacroPad.app`.
 - Dokončit fyzicky: jednou flashnout nové UF2, spárovat, ověřit zamčený zápis,
   odemknutý zápis, načtení, přetrvání po restartu a skutečné chování kláves.
