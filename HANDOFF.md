@@ -26,12 +26,13 @@
 - Kopírování skončilo chybou rozšířených atributů po restartu desky;
   úspěšné nahrání bylo následně potvrzeno novou identitou USB a HID registrací.
 - MacroPad.app spuštěna, tlačítkem ověřeno vypnutí a zapnutí mikrofonu.
-- Syntetická F18 přes automatizaci nebyla potvrzena; fyzickou klávesu je potřeba otestovat.
+- Uživatel potvrdil fyzický test: otáčení mění hlasitost, krátký stisk encoderu
+  přepíná mute zvuku a U3 přes F18 přepíná mute mikrofonu.
 - Hotové UF2 lokálně v `artifacts/complete-firmware/`, build aplikace v
   `MacroPadApp/dist/MacroPad.app` (generované soubory nejsou v Gitu).
 
 ## Fyzicky neověřeno
-- Reálné stisky s novým ZMK firmwarem a Bluetooth párování.
+- Bluetooth párování a samostatný test U1 (Play/Pause) / U2 (⌘C).
 - Baterie není připojená; mechanické dokončení zůstává na uživateli.
 - Historické zápisy do CH552 nebyly potvrzené fyzickým stiskem.
 
