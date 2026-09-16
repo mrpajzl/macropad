@@ -3,11 +3,16 @@ import SwiftUI
 @main
 struct MacroPadApp: App {
     @StateObject private var state = AppState()
+    @StateObject private var learningPad = LearningPad()
     @ObservedObject private var mic = MicController.shared
 
     var body: some Scene {
         Window("MacroPad", id: "main") {
-            ContentView().environmentObject(state)
+            TabView {
+                HardwareWorkspace(pad: learningPad).tabItem { Label("Vlastní MacroPad", systemImage: "square.grid.3x3") }
+                ContentView().environmentObject(state).tabItem { Label("Původní konfigurátor", systemImage: "keyboard") }
+                    .onDisappear { state.ble.disconnect(); state.recorder.stop() }
+            }
         }
         .defaultSize(width: 900, height: 700)
 
@@ -15,7 +20,7 @@ struct MacroPadApp: App {
             Button(mic.muted ? "Zapnout mikrofon" : "Vypnout mikrofon") { mic.toggle() }
                 .keyboardShortcut("m", modifiers: [.command, .shift])
             Divider()
-            Text(state.connectionLabel).foregroundStyle(.secondary)
+            Text(learningPad.ready ? "MacroPad · \(learningPad.project.controls.count) prvků" : state.connectionLabel).foregroundStyle(.secondary)
             OpenMainWindowButton()
             Divider()
             Button("Ukončit MacroPad") { NSApp.terminate(nil) }.keyboardShortcut("q")

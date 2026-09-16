@@ -4,10 +4,13 @@ import AppKit
 final class KeyRecorder: ObservableObject {
     @Published var recording: UInt8? = nil       // ID slotu, do kterého nahráváme
     private var monitor: Any?
+    private static weak var activeRecorder: KeyRecorder?
     var onChord: ((UInt8, Chord) -> Void)?
 
     func start(slot: UInt8) {
+        Self.activeRecorder?.stop()
         stop()
+        Self.activeRecorder = self
         recording = slot
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] ev in
             guard let self, let slot = self.recording else { return ev }
@@ -28,4 +31,5 @@ final class KeyRecorder: ObservableObject {
         monitor = nil
         recording = nil
     }
+    deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
 }

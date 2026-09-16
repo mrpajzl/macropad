@@ -95,3 +95,9 @@ Baterie zatím není připojena, zařízení je napájeno přes USB-C.
 
 Dokumentace: [ZMK encodery](https://zmk.dev/docs/hardware-integration/encoders),
 [ZMK moduly](https://zmk.dev/docs/development/module-creation).
+
+### Průvodce vlastním sestavením (0.3.0)
+
+Appka umí naučit přímo zapojená tlačítka a encodery XIAO, rozmístit je v gridu
+a uložit rozložení i akce do zařízení. Na jiném Macu se konfigurace načte sama.
+Viz [postup prvního nahrání a učení](docs/learning-wizard.md).

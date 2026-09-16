@@ -57,3 +57,14 @@ Stejný univerzální build lokálně:
 ```sh
 ./build.sh --arch arm64 --arch x86_64
 ```
+
+## Vlastní sestavení (0.3.0)
+
+Nová záložka **Vlastní MacroPad** nabízí první flash, naučení tlačítek/encoderů,
+volný grid a uložení konfigurace přímo do zařízení. Další Mac načte celé rozložení
+bez místních souborů. Podrobný postup a podporované zapojení jsou v
+[průvodci sestavením](../docs/learning-wizard.md).
+
+Build přibaluje `Firmware/macropad-learn.uf2` a jeho manifest. Tento ověřený
+obraz je verzovaný záměrně, aby první nahrání fungovalo offline bez přístupu do
+soukromého firmware repozitáře.

@@ -1,3 +1,27 @@
+# Průvodce učením MacroPadu — 16. 9. 2026
+
+- Nová záložka Vlastní MacroPad: první flash přibaleného UF2, učení tlačítek a
+  encoderů, grid 8×8, editor akcí, ověřený atomický zápis konfigurace do zařízení.
+- Univerzální firmware shield `macropadstudio`, firmware commit `88d4e00`.
+  Firmware CI **35083822512** úspěšné; správný samostatný keymap a kscan queue 64.
+- Konfigurace obsahuje stabilní ID, piny, grid i makra; jiný Mac ji čte z padu.
+  Lokální soubor není nutný. První BLE párování je v nastavení macOS.
+- První flash je univerzální firmware, finální tlačítko nahrává konfiguraci do NVS.
+  Žádná kompilace na míru nebo druhý flash není potřeba.
+- Přibalené UF2 + SHA256 + zdrojový commit jsou v `MacroPadApp/Firmware`.
+- Swift: 10 testů (včetně přibaleného firmware), původní i nový C protokol prošly.
+- Univerzální app build prošel lokálně. UI automation nelze ověřit: nástroj CUA
+  vrací `cgWindowNotFound` / `Sky Computer Use native pipe closed before response`.
+- Fyzické učení a načtení na druhém Macu nejsou vyzkoušené. Nový firmware nebyl
+  flashnut na připojený pad; stále na něm běží poslední rc3, viz níže.
+- Podporováno přímé zapojení D0–D10 proti GND, encoder se spínačem 4 hrany/krok.
+  Matice/expandéry zatím ne. Deep sleep stále vypnutý, spotřeba scanneru nezměřená.
+- První encoder hold + první/druhé tlačítko podle stabilního ID volí BLE 0/1.
+  Univerzální FW neobsahuje nechtěné mazání párování původní kombinací.
+- Návod: `docs/learning-wizard.md`; protokol ve firmware repo `docs/learning-protocol.md`.
+
+---
+
 # Oprava prvního stisku po nečinnosti — 16. 9. 2026
 
 - Firmware commit `2309bc6`: `CONFIG_ZMK_SLEEP=n`, idle zůstává 30 sekund.
