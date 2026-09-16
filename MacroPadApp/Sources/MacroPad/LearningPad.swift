@@ -10,6 +10,7 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
     @Published var message = "Připojte MacroPad s univerzálním firmwarem."
     @Published var project = HardwareProject()
     @Published var learning = false
+    @Published var receivingSamples = false
     var onSample: ((UInt16, Bool) -> Void)?
     var onLoaded: ((HardwareProject) -> Void)?
     private var central: CBCentralManager!
@@ -18,6 +19,7 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
     private var packets: [Data] = []
     private var expected: Data?
     private var timeout: Timer?, heartbeat: Timer?, reconnect: Timer?
+    private var sampleTimeout: Timer?
     private var sequence: UInt16?
     private var beginPending = false
     private var writing = false
@@ -65,7 +67,7 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
     private func reset() {
         ready = false; busy = false; learning = false; beginPending = false; writing = false; packets = []; expected = nil
         config = nil; command = nil; events = nil; sequence = nil
-        timeout?.invalidate(); heartbeat?.invalidate(); lastSampleAt = nil
+        timeout?.invalidate(); heartbeat?.invalidate(); sampleTimeout?.invalidate(); lastSampleAt = nil; receivingSamples = false
     }
     private func fail(_ text: String) {
         message = text
@@ -115,6 +117,7 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
             let lost = (sequence.map { $0 &+ 1 != next } ?? false) || (lastSampleAt.map { Date().timeIntervalSince($0) > 2 } ?? false)
             sequence = next
             lastSampleAt = Date()
+            receivingSamples = true; sampleTimeout?.invalidate()
             onSample?(UInt16(bytes[2]) | UInt16(bytes[3]) << 8, lost)
             return
         }
@@ -132,7 +135,12 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
     }
     func beginLearning() {
         guard ready, !busy, let peripheral, let events else { return }
-        busy = true; sequence = nil; beginPending = true; armTimeout()
+        busy = true; sequence = nil; lastSampleAt = nil; receivingSamples = false
+        beginPending = true; armTimeout()
+        sampleTimeout?.invalidate()
+        sampleTimeout = Timer.scheduledTimer(withTimeInterval: 8, repeats: false) { [weak self] _ in
+            self?.fail("Z MacroPadu nepřicházejí vzorky pinů. Ukončete další kopie MacroPad.app a znovu se připojte.")
+        }
         if events.isNotifying {
             beginPending = false; packets = [Data([1])]; sendNext()
         } else { peripheral.setNotifyValue(true, for: events) }
@@ -166,7 +174,7 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
         }
     }
     func cancelLearning() {
-        heartbeat?.invalidate(); learning = false
+        heartbeat?.invalidate(); sampleTimeout?.invalidate(); receivingSamples = false; learning = false
         // Disconnect also cancels the firmware lease immediately, without saving the draft.
         if let peripheral { central.cancelPeripheralConnection(peripheral) }
     }

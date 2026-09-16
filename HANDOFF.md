@@ -1,3 +1,25 @@
+# Aktuální stav — učení vstupů rc4
+
+- Uživatel hlásil 0 zachycených změn. Běžely dvě kopie appky současně.
+- USB log rc3 prokázal vyčerpané ATT buffery při odesílání vzorků.
+- Firmware 2200450 odděluje skenování GPIO od Bluetooth: fronta 256 vzorků
+  a samostatné vlákno pro odesílání, bez blokování systémové workqueue/mutexu.
+  Případné přetečení se stále projeví mezerou v sekvenci a odmítnutím pokusu.
+- Appka čeká na první vzorek před nabídkou přidání ovladače; po 8 s bez dat
+  oznámí chybu. Nové učení resetuje čas předchozího vzorku.
+- Obě kopie appky ukončeny po potvrzení, že nejsou neuložené prvky.
+  Nainstalována/spuštěna nová /Applications/MacroPad.app; běží jediná kopie.
+- CI firmware 35091667332 a C testy prošly. 10 Swift testů a universal build
+  prošly, nový přibalený UF2 dodatečně ověřen testem manifestu a struktury.
+- Debug firmware fyzicky nahrán přes USB bootloader příkaz, bez mazání bondů.
+  SHA256 6cadf0a16722310856448c1e501b37e97ade5103ee963e92fc0f39a718cb1541.
+  Pro USB příkaz musí být aktivní DTR (otevřít sériový monitor před příkazem).
+- Uživatel potvrdil rozpoznání tlačítka. Odeslán doplňující dotaz na encoder.
+- V appce je přibalen normální rc4 UF2. Na zařízení zůstává debug rc4.
+- Následují historické záznamy.
+
+---
+
 # Aktuální stav — oprava volného profilu rc3
 
 - USB diagnostika prokázala automatické spojení s druhým Macem a následné

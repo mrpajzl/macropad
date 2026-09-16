@@ -162,6 +162,8 @@ struct HardwareWorkspace: View {
             Text("Přidejte ovladače jeden po druhém").font(.headline)
             if !pad.learning {
                 Button("Zapnout poznávání zapojení") { pad.beginLearning() }.buttonStyle(.borderedProminent).disabled(!pad.ready || pad.busy)
+            } else if !pad.receivingSamples {
+                ProgressView("Čekám na data ze snímače…")
             } else if kind == nil {
                 HStack {
                     Button { begin(.button) } label: { Label("Přidat tlačítko", systemImage: "square") }
