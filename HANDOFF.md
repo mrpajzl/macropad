@@ -1,3 +1,24 @@
+# Nasazení 0.3.6 dokončeno — 16. 9. 2026
+
+- Aplikace i firmware zdroje commitnuty a pushnuty. App release tag v0.3.6 = e1460ba;
+  firmware main 8683a62. Všechna finální CI úspěšná: app 35146883533 + 35146916551,
+  firmware 35146618374, C sanitizéry 35146617753.
+- /Applications/MacroPad.app je přesně stažený GitHub CI bundle 0.3.6 (build 40),
+  ZIP checksum, podpis, obě architektury a přibalený firmware ověřeny. Běží PID 69252.
+- CUA krátce fungovalo: živá appka načetla 4 ovladače, sekce Připojení ukázala
+  Macbook pro uložený/offline, Macbook air aktuální/connected a multi-host popis.
+  První zdánlivě neaktivní stav se později ve STEJNÉM CI procesu aktualizoval.
+  Release byl během kontroly krátce vrácen do draftu; potvrzená trvalá chyba buildu
+  nenalezena. CUA následně opět hlásí native pipe closed; úplný click-test netvrdit.
+- Pad již měl 0.3.6 před tímto nasazením. Živý read/reconnect a shoda konfigurace
+  ověřeny, opakovaný flash nebyl proveden. Zachovat jeho současný config, ne starý OTA backup.
+- Veřejný release: https://github.com/mrpajzl/macropad/releases/tag/v0.3.6
+  Přílohy: universal ZIP, SHA256SUMS.txt, macropad-learn.uf2, firmware.json.
+- Ruční end-to-end test dvou Maců zůstává neprovedený; uvedeno v release notes
+  a docs/release-0.3.6-verification.md. Starší následující sekce jsou historie.
+
+---
+
 # Finální kontrola a vydání 0.3.6 — 16. 9. 2026
 
 - Uživatel výslovně schválil aplikaci, pad i GitHub release; potvrdil uložení a

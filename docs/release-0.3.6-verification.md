@@ -34,10 +34,21 @@ metodu, je-li pad připojený k tomuto Macu; jinak Bluetooth.
 
 ## Rozsah ručního ověření
 
-Ovládání živého GUI nástrojem CUA není dostupné (native pipe closed). Rozhraní
-bylo kontrolováno renderováním SwiftUI a kódem. Nebyl proveden celý ruční scénář
+Živý GitHub build byl spuštěn a po načtení zobrazil čtyři ovladače, oba uložené
+Macy a správný aktivní výstup. CUA během ověřování opakovaně ztrácelo spojení
+(native pipe closed); úplná kontrola klikáním proto nebyla dokončena. První
+zdánlivě nereagující stav se nepotvrdil jako trvalá chyba stejného procesu.
+Rozhraní bylo navíc kontrolováno renderováním SwiftUI a kódem. Nebyl proveden celý ruční scénář
 současné práce na dvou fyzických Macích, předání při odpojení druhého Macu a
 všech klávesových akcí. Čisté testy policy/protokolu jej nenahrazují.
 
 Lokální log a záloha aktuální konfigurace jsou v ignorované složce
 artifacts/release-0.3.6. Bootloader ani párování nebyly při této kontrole měněny.
+
+## Dokončené CI a artefakty
+
+- Firmware build 35146618374 a protokolové testy 35146617753: success.
+- Aplikace main 35146883533 a release/tag 35146916551: success.
+- Stažený release ZIP ověřen proti SHA256SUMS, podpisu, arm64/x86_64 a shodě
+  přibaleného UF2 s manifestem. Právě tento CI bundle je v /Applications/MacroPad.app.
+- Tag v0.3.6 ukazuje na e1460ba5b3ba8be2d9d33cccaa458ee3fa6bdf59.
