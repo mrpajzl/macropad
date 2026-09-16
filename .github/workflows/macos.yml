@@ -44,7 +44,7 @@ jobs:
           codesign --force --deep --sign - MacroPadApp/dist/MacroPad.app
       - name: Verify app bundle
         run: |
-          lipo -verify_arch arm64 x86_64 MacroPadApp/dist/MacroPad.app/Contents/MacOS/MacroPad
+          lipo MacroPadApp/dist/MacroPad.app/Contents/MacOS/MacroPad -verify_arch arm64 x86_64
           plutil -lint MacroPadApp/dist/MacroPad.app/Contents/Info.plist
           codesign --verify --deep --strict --verbose=2 MacroPadApp/dist/MacroPad.app
       - name: Package app and checksum
