@@ -14,7 +14,7 @@
 - Debug firmware fyzicky nahrán přes USB bootloader příkaz, bez mazání bondů.
   SHA256 6cadf0a16722310856448c1e501b37e97ade5103ee963e92fc0f39a718cb1541.
   Pro USB příkaz musí být aktivní DTR (otevřít sériový monitor před příkazem).
-- Uživatel potvrdil rozpoznání tlačítka. Odeslán doplňující dotaz na encoder.
+- Uživatel potvrdil rozpoznání tlačítka i celého encoderu (stisk, doprava, doleva).
 - V appce je přibalen normální rc4 UF2. Na zařízení zůstává debug rc4.
 - Následují historické záznamy.
 
