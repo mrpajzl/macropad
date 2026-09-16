@@ -11,7 +11,8 @@
   Uživatel před restartem potvrdil uloženou konfiguraci.
 - 11 Swift testů prošlo včetně stisku, puštění, obou směrů, mezery ve vzorcích
   a výpadku spojení. Universal build prošel; nový rc5 bundle zvlášť ověřen.
-- CUA stále vrací native pipe closed. Čekáme na fyzické potvrzení gridu uživatelem.
+- CUA stále vrací native pipe closed. Uživatel fyzicky potvrdil zvýraznění
+  správných prvků i zobrazení směru encoderu.
 - Pozor: USB boot log hlásí configured=0, přestože uživatel uvedl uložený layout.
   Pokud chybí rozložení, ověřit skutečné načtení z konkrétního padu; nic nemazat.
 - Následují historické záznamy.
