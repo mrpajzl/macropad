@@ -29,48 +29,54 @@ struct HardwareWorkspace: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
+            HStack(spacing: 14) {
+                Image(systemName: "square.grid.2x2.fill").font(.system(size: 20)).foregroundStyle(Studio.accent)
+                    .frame(width: 44, height: 44).background(Studio.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 13))
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Váš vlastní MacroPad").font(.title2.bold())
-                    Text(pad.message).font(.callout).foregroundStyle(.secondary).textSelection(.enabled)
+                    Text("MacroPad").font(.system(size: 23, weight: .semibold, design: .rounded))
+                    Text("Malé zařízení. Vaše zkratky.").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
                 Spacer()
-                if pad.ready { Label("Rozpoznán", systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
-            }
-            HStack {
-                Text("Zkratky a akce").font(.headline)
-                Spacer()
-                Button { openSetup() } label: { Label("Nastavení MacroPadu", systemImage: "gearshape") }
+                StudioBadge(title: pad.ready ? "Připojeno" : "Odpojeno", color: pad.ready ? .green : .gray)
+                Button { openSetup() } label: { Label("Nastavení zařízení", systemImage: "slider.horizontal.3") }
                     .disabled(pad.busy)
-            }
-            Divider()
+            }.padding(.bottom, 14)
+            Rectangle().fill(Studio.border).frame(height: 1)
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
                     if draft.controls.isEmpty {
                         VStack(spacing: 16) {
-                            Image(systemName: "keyboard").font(.system(size: 42)).foregroundStyle(.secondary)
+                            Image(systemName: "keyboard").font(.system(size: 52, weight: .ultraLight)).foregroundStyle(Studio.accent)
+                                .frame(width: 140, height: 110).background(Studio.surface, in: RoundedRectangle(cornerRadius: 24))
                             Text(pad.ready ? "Přidejte první tlačítka a encoder" : "Připojte svůj MacroPad").font(.title3.bold())
                             Text("Zapojení a rozložení nastavíte v nastavení zařízení. Tady pak budete upravovat zkratky.")
                                 .foregroundStyle(.secondary).multilineTextAlignment(.center)
-                            Button("Otevřít nastavení MacroPadu") { openSetup() }.buttonStyle(.borderedProminent)
+                            Button("Otevřít nastavení MacroPadu") { openSetup() }.buttonStyle(StudioButton(prominent: true))
                         }.frame(maxWidth: .infinity).padding(40)
                     } else { layout }
                     if !detail.isEmpty { Text(detail).foregroundStyle(.secondary).textSelection(.enabled) }
                 }.padding(2)
             }
-            Divider()
-            HStack {
+            Rectangle().fill(Studio.border).frame(height: 1)
+            HStack(spacing: 12) {
+                Image(systemName: dirty ? "circle.dotted" : "checkmark.circle").foregroundStyle(dirty ? Studio.accent : Color.secondary)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(pad.busy ? "Pracuji se zařízením…" : !pad.ready ? "Zařízení je odpojené" : dirty ? "Změny čekají na uložení" : "Vše je připravené").font(.system(size: 12, weight: .medium))
+                    Text(pad.message).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(2).textSelection(.enabled)
+                }
                 if dirty {
                     Button("Zahodit změny", role: .destructive) { showDiscard = true }
-                    Text("Neuložené změny").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button(pad.busy ? "Ukládám…" : "Uložit zkratky do MacroPadu") { saveDraft() }
-                    .buttonStyle(.borderedProminent)
+                Button(pad.busy ? "Ukládám…" : "Uložit změny") { saveDraft() }
+                    .buttonStyle(StudioButton(prominent: true))
                     .disabled(!pad.ready || pad.busy || draft.controls.isEmpty || !dirty)
             }
         }
-        .padding(22).frame(minWidth: 820, minHeight: 620)
+        .padding(28).padding(.top, 12).frame(minWidth: 900, minHeight: 600)
+        .background(LinearGradient(colors: [Color(red: 0.09, green: 0.105, blue: 0.12), Studio.background], startPoint: .topLeading, endPoint: .bottomTrailing))
+        .preferredColorScheme(.dark).tint(Studio.accent)
+        .buttonStyle(StudioButton()).groupBoxStyle(StudioGroupBox())
         .disabled(flashing)
         .sheet(isPresented: $showSetup, onDismiss: {
             kind = nil
@@ -95,7 +101,7 @@ struct HardwareWorkspace: View {
                     draft = project; dirty = false; saving = false
                     page = project.controls.isEmpty ? 1 : 2
                     if !project.controls.contains(where: { $0.id == selected }) { selected = project.controls.first?.id }
-                    if finished { showSetup = false; detail = "Uloženo. Vyberte prvek v gridu a nastavte jeho zkratky." }
+                    if finished { showSetup = false; detail = "Změny jsou uložené v MacroPadu." }
                 } else { detail = "Rozpracované změny zůstaly v aplikaci. Zařízení je znovu připojené; pro pokračování zapněte úpravy." }
             }
             pad.start()
@@ -160,12 +166,14 @@ struct HardwareWorkspace: View {
                 }
                 if page == 2 {
                     Button(pad.busy ? "Ukládám…" : "Uložit a přejít na zkratky") { saveDraft() }
-                        .buttonStyle(.borderedProminent)
+                        .buttonStyle(StudioButton(prominent: true))
                         .disabled(!pad.ready || pad.busy || draft.controls.isEmpty)
                 }
             }
         }
-        .padding(24).frame(width: 820, height: 680)
+        .padding(28).frame(width: 860, height: 720)
+        .background(Studio.background).preferredColorScheme(.dark).tint(Studio.accent)
+        .buttonStyle(StudioButton()).groupBoxStyle(StudioGroupBox())
         .interactiveDismissDisabled(pad.busy || flashing)
         .alert("Nahrát univerzální firmware?", isPresented: $showInstall) {
             Button("Nahrát firmware") { install() }
@@ -181,8 +189,15 @@ struct HardwareWorkspace: View {
         }
     }
     private func step(_ title: String, number: Int) -> some View {
-        Button(title) { page = number }.buttonStyle(.bordered)
-            .tint(page == number ? .accentColor : .gray)
+        Button { page = number } label: {
+            HStack(spacing: 9) {
+                Text(String(format: "%02d", number + 1)).font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(page == number ? Studio.accent : Color.secondary)
+                Text(title).font(.system(size: 12, weight: .medium))
+            }.frame(maxWidth: .infinity).padding(.vertical, 13)
+                .background(page == number ? Studio.surface : .clear, in: RoundedRectangle(cornerRadius: 11))
+                .overlay(RoundedRectangle(cornerRadius: 11).stroke(page == number ? Studio.accent.opacity(0.3) : Studio.border))
+        }.buttonStyle(.plain)
             .disabled(number > 0 && !pad.ready || pad.busy || kind != nil)
     }
     private var installation: some View {
@@ -221,13 +236,13 @@ struct HardwareWorkspace: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Přidejte ovladače jeden po druhém").font(.headline)
             if !pad.learning {
-                Button("Zapnout poznávání zapojení") { pad.beginLearning() }.buttonStyle(.borderedProminent).disabled(!pad.ready || pad.busy)
+                Button("Zapnout poznávání zapojení") { pad.beginLearning() }.buttonStyle(StudioButton(prominent: true)).disabled(!pad.ready || pad.busy)
             } else if !pad.receivingSamples {
                 ProgressView("Čekám na data ze snímače…")
             } else if kind == nil {
                 HStack {
-                    Button { begin(.button) } label: { Label("Přidat tlačítko", systemImage: "square") }
-                    Button { begin(.encoder) } label: { Label("Přidat encoder", systemImage: "dial.low") }
+                    StudioChoice(title: "Tlačítko", subtitle: "Jeden stisk. Vaše akce.", symbol: "square") { begin(.button) }
+                    StudioChoice(title: "Encoder", subtitle: "Otáčení a stisk kolečka.", symbol: "dial.low") { begin(.encoder) }
                 }.disabled(pad.busy || draft.controls.flatMap(\.pins).count >= 11)
                 Text("Při učení používejte jen právě přidávaný ovladač. Před každým krokem ho pusťte.").foregroundStyle(.secondary)
             }
@@ -235,7 +250,10 @@ struct HardwareWorkspace: View {
                 GroupBox {
                     VStack(alignment: .leading, spacing: 14) {
                         Text(captureStep == 0 ? "Stiskněte a pusťte \(kind == .button ? "tlačítko" : "kolečko")." : captureStep == 1 ? "Otočte kolečkem alespoň dva kroky doprava." : "Teď otočte alespoň dva kroky doleva.").font(.title3.bold())
-                        Text("Zachyceno změn: \(max(0, learner.samples.count - 1))").monospacedDigit()
+                        HStack {
+                            StudioBadge(title: lost ? "Přenos přerušen" : "Snímám pohyb", color: lost ? .orange : Studio.accent)
+                            Text("\(max(0, learner.samples.count - 1)) změn").font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        }
                         HStack {
                             Button(captureStep == 0 ? "Potvrdit stisk" : "Potvrdit otočení") { confirmCapture() }.disabled(lost || !pad.learning || pad.busy)
                             Button("Zkusit znovu") { resetCapture() }
@@ -257,6 +275,7 @@ struct HardwareWorkspace: View {
     }
     private var layout: some View {
         VStack(alignment: .leading, spacing: 16) {
+            if showSetup {
             HStack {
                 VStack(alignment: .leading) {
                     Text(showSetup ? "Rozložení prvků" : "Vyberte tlačítko nebo encoder").font(.headline)
@@ -265,6 +284,7 @@ struct HardwareWorkspace: View {
                 Spacer()
                 if showSetup { Button("Přidat ovladač") { page = 1 }.disabled(pad.busy) }
             }
+            }
             if showSetup {
                 activityGrid
                 controlInspector
@@ -272,7 +292,9 @@ struct HardwareWorkspace: View {
                 HStack(alignment: .top, spacing: 20) {
                     DevicePreview(controls: draft.controls, activity: activity, connected: pad.ready, selected: $selected)
                         .frame(maxWidth: .infinity)
-                    controlInspector.frame(width: 300)
+                    controlInspector.frame(width: 310)
+                        .padding(20).background(Studio.surface, in: RoundedRectangle(cornerRadius: 20))
+                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Studio.border))
                 }
             }
             if showSetup { Text("Rozložení se uloží přímo do MacroPadu.").font(.caption).foregroundStyle(.secondary) }
@@ -288,7 +310,7 @@ struct HardwareWorkspace: View {
                         let active = control.map { activity.isActive($0.id, at: now) } ?? false
                         let direction = control.map { activity.direction($0.id, at: now) } ?? 0
                         ZStack {
-                            RoundedRectangle(cornerRadius: 10).fill(active ? Color.green.opacity(0.28) : control?.id == selected ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(control == nil ? 0.05 : 0.12))
+                            RoundedRectangle(cornerRadius: 10).fill(active ? Color.green.opacity(0.28) : control?.id == selected ? Studio.accent.opacity(0.2) : Color.secondary.opacity(control == nil ? 0.05 : 0.12))
                             if let control {
                                 VStack(spacing: 4) {
                                     Image(systemName: direction > 0 ? "arrow.clockwise" : direction < 0 ? "arrow.counterclockwise" : control.kind == .encoder ? "dial.low.fill" : "square.fill").font(.title2)
@@ -318,7 +340,16 @@ struct HardwareWorkspace: View {
     @ViewBuilder private var controlInspector: some View {
             if let index = draft.controls.firstIndex(where: { $0.id == selected }) {
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(draft.controls[index].title).font(.headline)
+                    StudioSection(title: showSetup ? "Pozice prvku" : "Nastavení akce")
+                    HStack(spacing: 12) {
+                        Image(systemName: draft.controls[index].kind == .encoder ? "dial.low" : "square")
+                            .font(.system(size: 21)).foregroundStyle(Studio.accent)
+                            .frame(width: 42, height: 42).background(.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(draft.controls[index].title).font(.system(size: 18, weight: .semibold, design: .rounded))
+                            Text(draft.controls[index].kind == .encoder ? "Stisk a oba směry otáčení" : "Akce při stisku klávesy").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }.padding(.bottom, 8)
                     if showSetup {
                     HStack {
                         Text("Piny: " + draft.controls[index].pins.map { "D\($0)" }.joined(separator: ", ")).font(.caption.monospaced())
@@ -403,38 +434,108 @@ struct HardwareWorkspace: View {
     }
 }
 
-private struct HardwareActionEditor: View {
+struct HardwareActionEditor: View {
     let title: String
     @Binding var macro: MacroDef
     @StateObject private var recorder = KeyRecorder()
+    @State private var showActionMenu = false
     @Environment(\.isEnabled) private var isEnabled
     var body: some View {
-        GroupBox(title) {
-            VStack(alignment: .leading, spacing: 8) {
-                Picker("Akce", selection: $macro.kind) { ForEach(MacroKind.allCases) { Text($0.title).tag($0) } }
-                switch macro.kind {
-                case .media:
-                    Picker("Klávesa", selection: $macro.media) { ForEach(MediaKey.all) { Text($0.title).tag($0.code) } }
-                case .mouse:
-                    Picker("Pohyb", selection: $macro.mouse) { ForEach(MouseAction.allCases) { Text($0.title).tag($0) } }
-                case .micMute:
-                    Text("Pošle F18. Pro ztlumení mikrofonu musí na cílovém Macu běžet MacroPad.app.").font(.caption)
-                case .keys:
-                    HStack {
-                        Text(macro.chords.isEmpty ? "Bez akce" : macro.chords.map(\.label).joined(separator: " → "))
-                        Spacer()
-                        Button("Vymazat") { macro.chords = [] }
-                        Button(recorder.recording == nil ? "Nahrát zkratku" : "Zastavit (Esc)") {
-                            if recorder.recording == nil { recorder.start(slot: 0) } else { recorder.stop() }
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: title == "Doleva" ? "arrow.counterclockwise" : title == "Doprava" ? "arrow.clockwise" : "hand.tap")
+                    .foregroundStyle(Studio.accent)
+                Text(title).font(.system(size: 12, weight: .semibold))
+            }
+            HStack(spacing: 4) {
+                ForEach(MacroKind.allCases) { kind in
+                    Button { macro.kind = kind } label: {
+                        VStack(spacing: 6) {
+                            Image(systemName: kind.studioSymbol).font(.system(size: 15))
+                            Text(kind.studioTitle).font(.system(size: 9, weight: .medium))
+                        }.frame(maxWidth: .infinity).padding(.vertical, 11)
+                            .foregroundStyle(macro.kind == kind ? Studio.accent : Color.secondary)
+                            .background(macro.kind == kind ? Studio.accent.opacity(0.09) : .clear, in: RoundedRectangle(cornerRadius: 9))
+                            .overlay(RoundedRectangle(cornerRadius: 9).stroke(macro.kind == kind ? Studio.accent.opacity(0.25) : .clear))
+                    }.buttonStyle(.plain).accessibilityAddTraits(macro.kind == kind ? .isSelected : [])
+                }
+            }.padding(4).background(.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
+            switch macro.kind {
+            case .media:
+                actionMenu(title: MediaKey.all.first { $0.code == macro.media }?.title ?? "Vyberte akci") {
+                    ForEach(MediaKey.all) { key in choiceRow(key.title, selected: macro.media == key.code) { macro.media = key.code } }
+                }
+            case .mouse:
+                actionMenu(title: macro.mouse.title) {
+                    ForEach(MouseAction.allCases) { action in choiceRow(action.title, selected: macro.mouse == action) { macro.mouse = action } }
+                }
+            case .micMute:
+                Label("Přepnout mikrofon", systemImage: "mic.slash").font(.system(size: 13, weight: .medium))
+                Text("Ztlumí mikrofon na připojeném Macu. MacroPad.app musí běžet.").font(.caption).foregroundStyle(.secondary)
+            case .keys:
+                VStack(alignment: .leading, spacing: 12) {
+                    if macro.chords.isEmpty {
+                        Text(recorder.recording == nil ? "Zatím bez zkratky" : "Stiskněte klávesovou zkratku…")
+                            .font(.system(size: 12)).foregroundStyle(.secondary).frame(maxWidth: .infinity, minHeight: 36)
+                    } else {
+                        ViewThatFits(in: .horizontal) {
+                            chordSequence
+                            ScrollView(.horizontal) { chordSequence }
                         }
                     }
-                    Text("Nejvýše pět stisků v jednom makru.").font(.caption).foregroundStyle(.secondary)
+                    HStack {
+                        Button {
+                            if recorder.recording == nil { recorder.start(slot: 0) } else { recorder.stop() }
+                        } label: { Label(recorder.recording == nil ? "Nahrát zkratku" : "Zastavit", systemImage: recorder.recording == nil ? "record.circle" : "stop.circle") }
+                            .buttonStyle(StudioButton(prominent: recorder.recording != nil))
+                        Spacer(minLength: 0)
+                        if !macro.chords.isEmpty { Button { macro.chords = [] } label: { Image(systemName: "trash") }.help("Vymazat zkratku") }
+                    }
+                    Text(recorder.recording == nil ? "Až 5 stisků za sebou." : "Esc ukončí nahrávání.").font(.system(size: 10)).foregroundStyle(.secondary)
                 }
-            }.padding(6)
+            }
         }
+        .padding(.vertical, 16)
+        .overlay(alignment: .top) { Rectangle().fill(Studio.border).frame(height: 1) }
         .onAppear { recorder.onChord = { _, chord in if macro.chords.count < 5 { macro.chords.append(chord) } } }
         .onChange(of: macro.kind) { _ in recorder.stop() }
         .onChange(of: isEnabled) { enabled in if !enabled { recorder.stop() } }
         .onDisappear { recorder.stop() }
+    }
+    private var chordSequence: some View {
+        HStack(spacing: 5) {
+            ForEach(Array(macro.chords.enumerated()), id: \.offset) { _, chord in
+                Text(chord.label).font(.system(size: 15, weight: .medium, design: .rounded))
+                    .padding(.horizontal, 10).padding(.vertical, 9)
+                    .background(LinearGradient(colors: [.white.opacity(0.09), .white.opacity(0.03)], startPoint: .top, endPoint: .bottom), in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(RoundedRectangle(cornerRadius: 8).stroke(Studio.border))
+            }
+        }
+    }
+    private func actionMenu<Content: View>(title: String, @ViewBuilder content: @escaping () -> Content) -> some View {
+        Button { showActionMenu = true } label: {
+            HStack {
+                Text(title).font(.system(size: 13, weight: .medium))
+                Spacer()
+                Image(systemName: "chevron.up.chevron.down").font(.system(size: 10)).foregroundStyle(.secondary)
+            }.padding(13).background(.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).stroke(Studio.border))
+        }.buttonStyle(.plain)
+        .popover(isPresented: $showActionMenu, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: 12) {
+                StudioSection(title: "Vyberte akci")
+                ScrollView { VStack(spacing: 4) { content() } }.frame(maxHeight: 340)
+            }.padding(16).frame(width: 270).background(Studio.surface).preferredColorScheme(.dark)
+        }
+    }
+    private func choiceRow(_ title: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button { action(); showActionMenu = false } label: {
+            HStack {
+                Text(title).font(.system(size: 12, weight: .medium))
+                Spacer()
+                if selected { Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)) }
+            }.padding(11).foregroundStyle(selected ? Studio.accent : Color.primary)
+                .background(selected ? Studio.accent.opacity(0.08) : Color.white.opacity(0.025), in: RoundedRectangle(cornerRadius: 8))
+        }.buttonStyle(.plain)
     }
 }

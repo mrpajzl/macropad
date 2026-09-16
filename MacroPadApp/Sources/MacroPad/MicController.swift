@@ -136,10 +136,12 @@ struct HUDView: View {
         VStack(spacing: 14) {
             Image(systemName: muted ? "mic.slash.fill" : "mic.fill")
                 .font(.system(size: 64, weight: .medium))
-                .foregroundStyle(muted ? Color.red : Color.primary)
+                .foregroundStyle(muted ? Color.orange : Studio.accent)
             Text(muted ? "Mikrofon vypnut" : "Mikrofon zapnut").font(.headline)
         }
         .frame(width: 200, height: 200)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .background(Studio.surface, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 24).stroke(Studio.border))
+        .preferredColorScheme(.dark)
     }
 }

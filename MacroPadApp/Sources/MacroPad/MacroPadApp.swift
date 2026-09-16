@@ -11,7 +11,8 @@ struct MacroPadApp: App {
         Window("MacroPad", id: "main") {
             HardwareWorkspace(pad: learningPad)
         }
-        .defaultSize(width: 900, height: 700)
+        .defaultSize(width: 1100, height: 720)
+        .windowStyle(.hiddenTitleBar)
 
         MenuBarExtra {
             Button(mic.muted ? "Zapnout mikrofon" : "Vypnout mikrofon") { mic.toggle() }

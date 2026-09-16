@@ -1,3 +1,20 @@
+# Aktuální stav — sjednocený vizuální styl aplikace
+
+- StudioStyle poskytuje tmavé povrchy, cyan akcent, vlastní tlačítka, karty,
+  stavové štítky, typografii a volby prvků. Hlavní okno má skrytou titlebar.
+- Editor akcí: ikonové volby typu, vlastní popup médií/myši, klávesové štítky
+  pro makra, vlastní nahrávací ovládání. Menu zachovává všechny původní akce.
+- Sjednoceno nastavení zařízení, kroky učení, přidávání ovladačů, empty state,
+  footer se stavem/zápisem a mikrofonní HUD. Funkce a FW beze změn.
+- 12 Swift testů prošlo; universal build prošel. Komponenty vyrenderovány a
+  vizuálně zkontrolovány (/tmp/macropad-studio-style.png, ukázková data).
+- Nová aplikace nainstalována do /Applications/MacroPad.app a spuštěna.
+- CUA po resetu již funguje! Přímo ověřena hlavní obrazovka s načtenými čtyřmi
+  prvky, otevření výběru mediálních akcí, nastavení/zapojení a návrat zpět.
+  Screenshoty hlavního okna i nastavení vizuálně zkontrolovány. Konfigurace nezměněna.
+
+---
+
 # Aktuální stav — vizualizace nakonfigurovaného zařízení
 
 - Nový DevicePreview nahrazuje hlavní 8×8 grid. Zobrazuje oříznuté fyzické
