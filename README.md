@@ -117,3 +117,19 @@ nebo přerušení měření se trend resetuje. Zastaralé údaje se neprezentuj�
 aktuální. XIAO nemá v tomto zapojení měření proudu ani přesný fuel gauge;
 napěťový odhad procent může při nabíjení kolísat. Zhasnutá kontrolka CHG
 znamená, že nabíjení neprobíhá, nikoli nutně plnou baterii.
+
+### Uložené počítače a Bluetooth
+
+Tlačítko **Zařízení** otevírá správu uložených hostů. Seznam se načítá z MacroPadu
+včetně názvů a označení **Tento Mac** podle identity aktuálního BLE spojení.
+**Ovládat** přepne cílový Bluetooth profil; **Použít USB** změní preferovaný výstup.
+Panel vždy ukazuje skutečný výstup, který se může při nedostupném preferovaném
+zařízení dočasně přepnout na jiný transport. Připojení konfigurační aplikace není
+totéž jako příjem kláves; více Maců může zůstat současně připojených.
+
+**Přidat nové zařízení** vybere volný slot a spustí 120sekundové párování. Na novém
+počítači pak vyberte MacroPad v nastavení Bluetooth. Zrušení nebo vypršení okna
+vrátí předchozí profil; návrat funguje i po restartu uprostřed párování. Uložený Mac znovu nepárujte, pouze jej zvolte v seznamu.
+Názvy jsou uložené v zařízení a svázané s identitou hosta. Více slotů se stejnou
+Bluetooth identitou se zobrazuje jako jedna položka s vysvětlením duplicity;
+žádné párovací klíče se tím nemažou. Odlišné identity se automaticky neslučují.

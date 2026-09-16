@@ -9,6 +9,7 @@ struct HardwareWorkspace: View {
     @State private var page = 0
     @State private var showSetup = false
     @State private var showPower = false
+    @State private var showHosts = false
     @State private var selected: Int?
     @State private var kind: ControlKind?
     @State private var captureStep = 0
@@ -46,9 +47,10 @@ struct HardwareWorkspace: View {
                     }
                 }
                 .popover(isPresented: $showPower) { PowerDetails(pad: pad) }
-                StudioBadge(title: pad.ready ? "Připojeno" : "Odpojeno", color: pad.ready ? .green : .gray)
+                Button { showHosts = true } label: { Label("Zařízení", systemImage: "laptopcomputer") }
+                StudioBadge(title: pad.ready ? "Appka připojena" : "Odpojeno", color: pad.ready ? .green : .gray)
                 Button { openSetup() } label: { Label("Nastavení zařízení", systemImage: "slider.horizontal.3") }
-                    .disabled(pad.busy)
+                    .disabled(pad.busy || pad.hostBusy)
             }.padding(.bottom, 14)
             Rectangle().fill(Studio.border).frame(height: 1)
             ScrollView {
@@ -79,7 +81,7 @@ struct HardwareWorkspace: View {
                 Spacer()
                 Button(pad.busy ? "Ukládám…" : "Uložit změny") { saveDraft() }
                     .buttonStyle(StudioButton(prominent: true))
-                    .disabled(!pad.ready || pad.busy || draft.controls.isEmpty || !dirty)
+                    .disabled(!pad.ready || pad.busy || pad.hostBusy || draft.controls.isEmpty || !dirty)
             }
         }
         .padding(28).padding(.top, 12).frame(minWidth: 900, minHeight: 600)
@@ -87,6 +89,7 @@ struct HardwareWorkspace: View {
         .preferredColorScheme(.dark).tint(Studio.accent)
         .buttonStyle(StudioButton()).groupBoxStyle(StudioGroupBox())
         .disabled(flashing)
+        .sheet(isPresented: $showHosts) { HostManagerView(pad: pad) }
         .sheet(isPresented: $showSetup, onDismiss: {
             kind = nil
             pad.endLearning()
@@ -176,7 +179,7 @@ struct HardwareWorkspace: View {
                 if page == 2 {
                     Button(pad.busy ? "Ukládám…" : "Uložit a přejít na zkratky") { saveDraft() }
                         .buttonStyle(StudioButton(prominent: true))
-                        .disabled(!pad.ready || pad.busy || draft.controls.isEmpty)
+                        .disabled(!pad.ready || pad.busy || pad.hostBusy || draft.controls.isEmpty)
                 }
             }
         }
@@ -228,7 +231,7 @@ struct HardwareWorkspace: View {
             GroupBox("Připojit a automaticky načíst zařízení") {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Pokud už je firmware nahraný, tento krok stačí. Při prvním připojení spárujte MacroPad v nastavení Bluetooth macOS. Konfigurace se načte přímo z něj i na novém počítači.")
-                    Button("Hledat MacroPad") { pad.start() }.disabled(pad.busy)
+                    Button("Hledat MacroPad") { pad.start() }.disabled(pad.busy || pad.hostBusy)
                     ForEach(pad.devices, id: \.identifier) { device in
                         HStack {
                             Text(device.name ?? "MacroPad")
@@ -291,7 +294,7 @@ struct HardwareWorkspace: View {
                     Text(showSetup ? "Přetáhněte prvek do buňky. Obsazené buňky si vymění pozici." : "Kliknutím na prvek upravíte jeho zkratky a akce.").foregroundStyle(.secondary)
                 }
                 Spacer()
-                if showSetup { Button("Přidat ovladač") { page = 1 }.disabled(pad.busy) }
+                if showSetup { Button("Přidat ovladač") { page = 1 }.disabled(pad.busy || pad.hostBusy) }
             }
             }
             if showSetup {

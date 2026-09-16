@@ -11,6 +11,14 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
     @Published var project = HardwareProject()
     @Published var learning = false
     @Published var receivingSamples = false
+    @Published var hosts: HostProfiles?
+    @Published var supportsHosts = false
+    @Published var hostBusy = false
+    @Published var hostMessage = ""
+    private var hostsRead: CBCharacteristic?, hostsWrite: CBCharacteristic?
+    private var hostTimer: Timer?, hostTimeout: Timer?
+    private var hostStartSequence: UInt8?
+    private var hostAcknowledged = false
     @Published var power: PowerStatus?
     @Published var powerHistory = PowerHistory()
     @Published var signal: Int?
@@ -73,6 +81,8 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
         peripheral = nil; reset()
     }
     private func reset() {
+        hostTimer?.invalidate(); hostTimeout?.invalidate(); hostTimer = nil
+        hostsRead = nil; hostsWrite = nil; hosts = nil; supportsHosts = false; hostBusy = false; hostStartSequence = nil; hostMessage = ""
         powerTimer?.invalidate(); powerTimer = nil; powerPending = false
         powerCharacteristic = nil; batteryCharacteristic = nil; supportsPower = false
         power = nil; powerHistory = PowerHistory(); signal = nil
@@ -123,6 +133,9 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
             return
         }
         guard service.uuid == Self.uuid("1000") else { return }
+        hostsRead = service.characteristics?.first { $0.uuid == Self.uuid("1006") }
+        hostsWrite = service.characteristics?.first { $0.uuid == Self.uuid("1007") }
+        supportsHosts = hostsRead != nil && hostsWrite != nil
         powerCharacteristic = service.characteristics?.first { $0.uuid == Self.uuid("1005") }
         supportsPower = powerCharacteristic != nil
         config = service.characteristics?.first { $0.uuid == Self.uuid("1002") }
@@ -133,6 +146,17 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
     }
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         guard peripheral == self.peripheral else { return }
+        if characteristic.uuid == Self.uuid("1006") {
+            guard error == nil, let data = characteristic.value, let snapshot = HostProfiles.decode(data) else {
+                hostMessage = "Seznam zařízení se nepodařilo načíst. Zkuste obnovit spojení."; return
+            }
+            hosts = snapshot
+            if hostBusy, hostAcknowledged, let sequence = hostStartSequence, snapshot.sequence != sequence, !snapshot.pending {
+                hostBusy = false; hostTimeout?.invalidate(); hostStartSequence = nil
+                hostMessage = snapshot.failed ? "Změna se nepodařila. Obnovte seznam a zkuste to znovu." : "Změna potvrzena MacroPadem."
+            }
+            return
+        }
         if characteristic.uuid == Self.uuid("1005") || characteristic.uuid == CBUUID(string: "2A19") {
             powerPending = false
             guard error == nil, let data = characteristic.value else { return }
@@ -164,11 +188,32 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
             expected = nil
             UserDefaults.standard.set(peripheral.identifier.uuidString, forKey: "learnedPad")
             onLoaded?(loaded)
+            if hostTimer == nil {
+                refreshHosts()
+                hostTimer = Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { [weak self] _ in self?.refreshHosts() }
+            }
             if powerTimer == nil {
                 refreshPower()
                 powerTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in self?.refreshPower() }
             }
         } catch { fail(error.localizedDescription) }
+    }
+    func refreshHosts() {
+        guard ready, !busy, !learning, (!hostBusy || hostAcknowledged), let peripheral, let hostsRead else { return }
+        peripheral.readValue(for: hostsRead)
+    }
+    func manageHost(_ packet: Data) {
+        guard ready, !busy, !learning, !hostBusy, let snapshot = hosts, snapshot.fresh, !snapshot.pending,
+              let peripheral, let hostsWrite else { return }
+        hostBusy = true; hostAcknowledged = false; hostStartSequence = snapshot.sequence
+        hostMessage = "Čekám na potvrzení MacroPadu…"
+        hostTimeout?.invalidate()
+        hostTimeout = Timer.scheduledTimer(withTimeInterval: 12, repeats: false) { [weak self] _ in
+            self?.hostBusy = false; self?.hostStartSequence = nil
+            self?.hostMessage = "Potvrzení nedorazilo. Ověřte aktuální výběr v seznamu zařízení."
+            self?.refreshHosts()
+        }
+        peripheral.writeValue(packet, for: hostsWrite, type: .withResponse)
     }
     func refreshPower() {
         guard ready, !busy, !learning, !powerPending, let peripheral else { return }
@@ -183,7 +228,7 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
         signal = RSSI.intValue
     }
     func beginLearning() {
-        guard ready, !busy, let peripheral, let events else { return }
+        guard ready, !busy, !hostBusy, let peripheral, let events else { return }
         busy = true; sequence = nil; lastSampleAt = nil; receivingSamples = false
         beginPending = true; armTimeout()
         sampleTimeout?.invalidate()
@@ -206,6 +251,12 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
     }
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         guard peripheral == self.peripheral else { return }
+        if characteristic.uuid == Self.uuid("1007") {
+            if let error {
+                hostBusy = false; hostTimeout?.invalidate(); hostStartSequence = nil; hostMessage = "Změna selhala: \(error.localizedDescription)"
+            } else { hostAcknowledged = true; refreshHosts() }
+            return
+        }
         writing = false
         guard error == nil else { fail("Zápis selhal: \(error!.localizedDescription)"); return }
         timeout?.invalidate()
@@ -244,7 +295,7 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
         return packets
     }
     func save(_ project: HardwareProject) {
-        guard ready, !busy else { return }
+        guard ready, !busy, !hostBusy else { return }
         do {
             let data = try project.encode(); expected = data; busy = true; heartbeat?.invalidate()
             // Acquire/renew the lease as part of this transaction, including after reconnect.

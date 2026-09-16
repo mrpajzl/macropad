@@ -1,9 +1,9 @@
 {
-  "sha256": "6a52d4d64d42f7dbfe7fbae432081032f5385e3fe5038e32df8f7f5bd41f6554",
-  "sourceCommit": "6e3840085606c286f5c968c9e7de64b2a886f755",
+  "sha256": "509efa56dfd08de7dc97676b7e39e51ee9ee61d717d1390248046b1e7c82eab5",
+  "sourceCommit": "39cf8d75cffd024483aa0a4924fee216b67a4a93",
   "sourceRepository": "mrpajzl/zmk-config-macropad",
-  "buildRun": 35096249545,
+  "buildRun": 35104942798,
   "shield": "macropadstudio",
   "board": "seeeduino_xiao_ble",
-  "version": "0.3.1-power"
+  "version": "0.3.1-hosts"
 }

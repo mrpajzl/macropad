@@ -43,7 +43,7 @@ struct PowerDetails: View {
                     row("Napětí baterie", fresh ? pad.power?.millivolts.map { String(format: "%.2f V", Double($0) / 1000) } ?? "Nedostupné" : "—")
                     row(pad.power?.mode == .charging ? "Rychlost nabíjení" : "Rychlost vybíjení",
                         fresh ? pad.powerHistory.rate.map { String(format: "≈ %.1f p. b./h", abs($0)) } ?? (pad.power?.mode == .usb ? "Nabíjení neprobíhá" : pad.power?.mode == .unknown ? "Nedostupné" : "Sbírám měření…") : "—")
-                    if let profile = pad.power?.profile { row("Aktivní Bluetooth profil", fresh ? "\(profile + 1)" : "—") }
+                    if let profile = pad.power?.profile { row("Vybraný Bluetooth host", fresh ? pad.hosts?.hosts.first(where: { $0.selected })?.title ?? "Profil \(profile + 1)" : "—") }
                     if let uptime = pad.power?.uptime { row("Od zapnutí", fresh ? duration(uptime) : "—") }
                     row("Bluetooth signál", fresh ? pad.signal.map { "\($0) dBm" } ?? "—" : "—")
                 }
