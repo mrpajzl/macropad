@@ -11,6 +11,13 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
     @Published var project = HardwareProject()
     @Published var learning = false
     @Published var receivingSamples = false
+    @Published var power: PowerStatus?
+    @Published var powerHistory = PowerHistory()
+    @Published var signal: Int?
+    @Published var supportsPower = false
+    private var powerCharacteristic: CBCharacteristic?, batteryCharacteristic: CBCharacteristic?
+    private var powerTimer: Timer?
+    private var powerPending = false
     var onSample: ((UInt16, Bool) -> Void)?
     var onLoaded: ((HardwareProject) -> Void)?
     private var central: CBCentralManager!
@@ -66,6 +73,9 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
         peripheral = nil; reset()
     }
     private func reset() {
+        powerTimer?.invalidate(); powerTimer = nil; powerPending = false
+        powerCharacteristic = nil; batteryCharacteristic = nil; supportsPower = false
+        power = nil; powerHistory = PowerHistory(); signal = nil
         ready = false; busy = false; learning = false; beginPending = false; endingLearning = false; writing = false; packets = []; expected = nil
         config = nil; command = nil; events = nil; sequence = nil
         timeout?.invalidate(); heartbeat?.invalidate(); sampleTimeout?.invalidate(); lastSampleAt = nil; receivingSamples = false
@@ -81,7 +91,7 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
     }
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         guard peripheral == self.peripheral else { return }
-        peripheral.discoverServices([Self.uuid("1000")])
+        peripheral.discoverServices([Self.uuid("1000"), CBUUID(string: "180F")])
     }
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
         guard peripheral == self.peripheral else { return }; fail(error?.localizedDescription ?? "Připojení se nezdařilo.")
@@ -100,9 +110,21 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
         guard peripheral == self.peripheral else { return }
         guard error == nil, let service = peripheral.services?.first(where: { $0.uuid == Self.uuid("1000") }) else { fail("Nahrajte univerzální firmware v prvním kroku průvodce."); return }
         peripheral.discoverCharacteristics(nil, for: service)
+        if let battery = peripheral.services?.first(where: { $0.uuid == CBUUID(string: "180F") }) {
+            peripheral.discoverCharacteristics([CBUUID(string: "2A19")], for: battery)
+        }
     }
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
         guard peripheral == self.peripheral else { return }
+        if service.uuid == CBUUID(string: "180F") {
+            guard error == nil else { return }
+            batteryCharacteristic = service.characteristics?.first { $0.uuid == CBUUID(string: "2A19") }
+            if ready { refreshPower() }
+            return
+        }
+        guard service.uuid == Self.uuid("1000") else { return }
+        powerCharacteristic = service.characteristics?.first { $0.uuid == Self.uuid("1005") }
+        supportsPower = powerCharacteristic != nil
         config = service.characteristics?.first { $0.uuid == Self.uuid("1002") }
         command = service.characteristics?.first { $0.uuid == Self.uuid("1003") }
         events = service.characteristics?.first { $0.uuid == Self.uuid("1004") }
@@ -111,6 +133,15 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
     }
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         guard peripheral == self.peripheral else { return }
+        if characteristic.uuid == Self.uuid("1005") || characteristic.uuid == CBUUID(string: "2A19") {
+            powerPending = false
+            guard error == nil, let data = characteristic.value else { return }
+            let sample: PowerStatus?
+            if characteristic.uuid == Self.uuid("1005") { sample = PowerStatus.decode(data) }
+            else { sample = data.count == 1 && data[0] <= 100 ? PowerStatus(percent: Int(data[0])) : nil }
+            if let sample { power = sample; powerHistory.append(sample) }
+            return
+        }
         guard error == nil, let data = characteristic.value else { fail(error?.localizedDescription ?? "Čtení selhalo."); return }
         if characteristic.uuid == Self.uuid("1004") {
             let bytes = [UInt8](data); guard bytes.count == 4 else { fail("Neplatná odpověď snímače."); return }
@@ -133,7 +164,23 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
             expected = nil
             UserDefaults.standard.set(peripheral.identifier.uuidString, forKey: "learnedPad")
             onLoaded?(loaded)
+            if powerTimer == nil {
+                refreshPower()
+                powerTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in self?.refreshPower() }
+            }
         } catch { fail(error.localizedDescription) }
+    }
+    func refreshPower() {
+        guard ready, !busy, !learning, !powerPending, let peripheral else { return }
+        peripheral.readRSSI()
+        if let characteristic = powerCharacteristic ?? batteryCharacteristic {
+            powerPending = true
+            peripheral.readValue(for: characteristic)
+        }
+    }
+    func peripheral(_ peripheral: CBPeripheral, didReadRSSI RSSI: NSNumber, error: Error?) {
+        guard peripheral == self.peripheral, error == nil, RSSI.intValue != 127 else { return }
+        signal = RSSI.intValue
     }
     func beginLearning() {
         guard ready, !busy, let peripheral, let events else { return }

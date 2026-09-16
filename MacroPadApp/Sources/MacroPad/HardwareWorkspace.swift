@@ -8,6 +8,7 @@ struct HardwareWorkspace: View {
     @State private var dirty = false
     @State private var page = 0
     @State private var showSetup = false
+    @State private var showPower = false
     @State private var selected: Int?
     @State private var kind: ControlKind?
     @State private var captureStep = 0
@@ -37,6 +38,14 @@ struct HardwareWorkspace: View {
                     Text("Malé zařízení. Vaše zkratky.").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
                 Spacer()
+                Button { showPower.toggle() } label: {
+                    TimelineView(.periodic(from: .now, by: 10)) { context in
+                        let fresh = pad.ready && pad.power?.isFresh(at: context.date) == true
+                        Label(fresh ? pad.power?.percent.map { "\($0) %" } ?? "Baterie" : "Baterie",
+                              systemImage: fresh && pad.power?.mode == .charging ? "battery.100.bolt" : "battery.100")
+                    }
+                }
+                .popover(isPresented: $showPower) { PowerDetails(pad: pad) }
                 StudioBadge(title: pad.ready ? "Připojeno" : "Odpojeno", color: pad.ready ? .green : .gray)
                 Button { openSetup() } label: { Label("Nastavení zařízení", systemImage: "slider.horizontal.3") }
                     .disabled(pad.busy)

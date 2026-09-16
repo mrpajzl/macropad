@@ -101,3 +101,19 @@ Dokumentace: [ZMK encodery](https://zmk.dev/docs/hardware-integration/encoders),
 Appka umí naučit přímo zapojená tlačítka a encodery XIAO, rozmístit je v gridu
 a uložit rozložení i akce do zařízení. Na jiném Macu se konfigurace načte sama.
 Viz [postup prvního nahrání a učení](docs/learning-wizard.md).
+
+### Stav baterie a nabíjení
+
+Kliknutím na baterii v horní liště otevřete panel energie: odhad procent,
+stav nabíjení z /CHG nabíječky XIAO, napětí, graf aktuálního režimu (nejvýše
+hodina), aktivní Bluetooth profil, dobu od zapnutí a RSSI. Aplikace čte stav
+po 30 sekundách; firmware měří napětí po 60 sekundách. Starší firmware může
+poskytovat pouze procenta přes standardní Bluetooth Battery Service.
+
+Rychlost je odhad v **procentních bodech za hodinu**, nikoli proud v mA.
+Zobrazuje se po alespoň 15 minutách souvislého měření a změně o 2 body.
+Historie je dočasná, v paměti aplikace; při změně režimu, restartu zařízení
+nebo přerušení měření se trend resetuje. Zastaralé údaje se neprezentují jako
+aktuální. XIAO nemá v tomto zapojení měření proudu ani přesný fuel gauge;
+napěťový odhad procent může při nabíjení kolísat. Zhasnutá kontrolka CHG
+znamená, že nabíjení neprobíhá, nikoli nutně plnou baterii.
