@@ -1,3 +1,26 @@
+# Aktuální stav — oprava volného profilu rc3
+
+- USB diagnostika prokázala automatické spojení s druhým Macem a následné
+  odmítnutí tohoto Macu: `Rejecting pairing request to taken profile 0`.
+- Firmware 1565bd8 rezervuje skutečně volný profil i při připojeném starém hostu.
+  Klíč setup_profile_v2 opravuje chybnou rezervaci z rc2. Bondy se nemažou.
+- CI 35091017485 prošlo. Nový debug UF2 byl nahrán na XIAO-SENSE.
+  SHA256 dd702be7d40af7a27c0934b9a7b091cb0e306cdda0e846f1a9e56bb2168bef6b.
+- Fyzický výpis potvrdil `open=0x1e target=1` a výběr profilu 1 s výsledkem 0.
+- Uživatel potvrdil úspěšné připojení a načtení v appce. USB log potvrzuje
+  šifrování level 2, nový bond v profilu 1; původní profil 0 zachován.
+- Appka otevřena a její přibalený firmware aktualizován na rc3.
+  10 Swift testů a lokální universal build prošly.
+- Debug USB konzole podporuje status, profile N a bootloader (řádek s LF).
+  Bootloader lze nyní vyvolat bez fyzického resetu. Port /dev/cu.usbmodem101.
+- Normální rc3 UF2 je přibalené v MacroPadApp/Firmware, debug jen na zařízení.
+- Diagnostické logy lokálně /tmp/macropad-occupied-profile-proof.log a
+  /tmp/macropad-device-serial.log. Nezveřejňovat osobní diagnostiku.
+- Starší hypotéza nedostatečného stacku se nepotvrdila; 4096 B ponecháno.
+- Níže je historický průběh, ne aktuální stav.
+
+---
+
 # Oprava párování před prvním učením — 16. 9. 2026
 
 - Uživatel hlásil viditelné zařízení, které odmítá připojení po flashi rc1.

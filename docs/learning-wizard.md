@@ -45,8 +45,8 @@ Samotné klávesy, média a myš fungují jako HID bez appky.
 
 První naučený encoder držený společně s prvním/druhým tlačítkem podle ID vybírá
 Bluetooth profil 0/1. Podržení tohoto encoderu a otočení přepíná všechny profily.
-Od 0.3.0-rc2 si první nastavení bez naučených ovladačů vybere volný profil,
-pokud je aktivní obsazený a odpojený. Volbu si uloží i pro restart před dokončením
+Od 0.3.0-rc3 si první nastavení bez naučených ovladačů vybere volný profil
+i tehdy, když se k obsazenému profilu automaticky připojí původní Mac. Volbu si uloží i pro restart před dokončením
 průvodce; stávající párování nemaže. Jsou-li všechny profily obsazené, automaticky
 se nic nemaže. Původní nechtěně spustitelná kombinace pro mazání párování
 v univerzální variantě není. Základní firmware nemaže existující párování.
