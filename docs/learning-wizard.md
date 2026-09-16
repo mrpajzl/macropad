@@ -3,6 +3,13 @@
 Od appky 0.3.0 je nová záložka **Vlastní MacroPad**. Původní konfigurátor
 zůstává dostupný pro starý firmware a CH552.
 
+Hlavní obrazovka obsahuje živý grid a vedle něj editor zkratek vybraného prvku.
+Běžné změny akcí uložíte tlačítkem **Uložit zkratky do MacroPadu**.
+Průvodce je v popupu **Nastavení MacroPadu**: připojení a firmware, zapojení
+a rozložení prvků. **Uložit a přejít na zkratky** po ověřeném zápisu popup
+zavře a vrátí vás k akcím vybraného prvku. Zavření popupu bez uložení ponechá
+návrh v appce a ukončí poznávání, takže běžná makra zase fungují.
+
 ## První zapojení
 
 Podporovaná deska je Seeed XIAO nRF52840 / Sense. Tlačítka připojujte mezi
@@ -24,7 +31,7 @@ stejně jako u původního prototypu.
 5. Přidejte další ovladače. V gridu přetahujte prvky; obsazené pozice se vymění.
    Lze použít i volby řádku/sloupce. Každý encoder má stisk/doleva/doprava.
    Tlačítka jsou zpočátku bez akce; přiřaďte jim zkratky, média, myš či mikrofon.
-6. **Dokončit a nahrát do MacroPadu** nahraje celou konfiguraci, atomicky ji
+6. **Uložit a přejít na zkratky** nahraje celou konfiguraci, atomicky ji
    uloží do paměti desky a znovu načte pro ověření. Univerzální firmware už
    běží; podle rozložení se nekompiluje ani znovu neflashuje. Uložení si samo
    vyžádá režim pro zápis; není nutné předem zapínat poznávání.

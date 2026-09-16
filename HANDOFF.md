@@ -1,3 +1,16 @@
+# Aktuální změna — nastavení zařízení v popupu
+
+- Hlavní obrazovka: živý grid vlevo, editor akcí vybraného prvku vpravo.
+  Úpravy akcí nevyžadují learning lease; Uložit zkratky si jej získá samo.
+- Nastavení MacroPadu otevírá sheet s připojením/FW, učením a rozložením.
+  Po ověřeném save/readback se sheet zavře a zachová výběr prvku pro zkratky.
+- Zavření sheetu ponechá lokální návrh a příkazem 2 ukončí lease bez odpojení,
+  takže pasivní zvýraznění i normální HID pokračují. Chyby zápisu sheet nezavírají.
+- 12 Swift testů a universal build prošly. Firmware se nemění (rc5).
+- CUA není funkční (native pipe closed); vzhled potřebuje kontrolu uživatelem.
+
+---
+
 # Aktuální oprava — neaktivní tlačítko uložení
 
 - Footer chybně vyžadoval pad.learning; nově je uložení dostupné pro připojený

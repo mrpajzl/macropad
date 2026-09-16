@@ -7,6 +7,7 @@ struct HardwareWorkspace: View {
     @State private var activity = HardwareActivity()
     @State private var dirty = false
     @State private var page = 0
+    @State private var showSetup = false
     @State private var selected: Int?
     @State private var kind: ControlKind?
     @State private var captureStep = 0
@@ -37,41 +38,44 @@ struct HardwareWorkspace: View {
                 if pad.ready { Label("Rozpoznán", systemImage: "checkmark.circle.fill").foregroundStyle(.green) }
             }
             HStack {
-                step("1  Firmware a připojení", number: 0)
-                step("2  Poznat ovladače", number: 1)
-                step("3  Rozložení a akce", number: 2)
+                Text("Zkratky a akce").font(.headline)
+                Spacer()
+                Button { openSetup() } label: { Label("Nastavení MacroPadu", systemImage: "gearshape") }
+                    .disabled(pad.busy)
             }
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    if page == 0 { installation }
-                    else if page == 1 { discovery }
-                    else { layout }
+                    if draft.controls.isEmpty {
+                        VStack(spacing: 16) {
+                            Image(systemName: "keyboard").font(.system(size: 42)).foregroundStyle(.secondary)
+                            Text(pad.ready ? "Přidejte první tlačítka a encoder" : "Připojte svůj MacroPad").font(.title3.bold())
+                            Text("Zapojení a rozložení nastavíte v nastavení zařízení. Tady pak budete upravovat zkratky.")
+                                .foregroundStyle(.secondary).multilineTextAlignment(.center)
+                            Button("Otevřít nastavení MacroPadu") { openSetup() }.buttonStyle(.borderedProminent)
+                        }.frame(maxWidth: .infinity).padding(40)
+                    } else { layout }
                     if !detail.isEmpty { Text(detail).foregroundStyle(.secondary).textSelection(.enabled) }
-                }.frame(maxWidth: .infinity, alignment: .leading).padding(2)
+                }.padding(2)
             }
             Divider()
             HStack {
-                if pad.learning || dirty {
-                    Button("Zrušit úpravy", role: .destructive) { showDiscard = true }
-                    Text(pad.learning ? "Učení: makra jsou dočasně vypnutá" : "Neuložené změny").font(.caption).foregroundStyle(.secondary)
+                if dirty {
+                    Button("Zahodit změny", role: .destructive) { showDiscard = true }
+                    Text("Neuložené změny").font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                if page == 1 {
-                    Button("Rozmístit v gridu →") { kind = nil; page = 2 }.disabled(draft.controls.isEmpty)
-                }
-                if page == 2 {
-                    Button(pad.busy ? "Nahrávám…" : "Dokončit a nahrát do MacroPadu") {
-                        saving = true; kind = nil; pad.save(draft)
-                    }.buttonStyle(.borderedProminent)
-                        .disabled(!pad.ready || pad.busy || draft.controls.isEmpty)
-                    if !pad.ready { Text("Pro uložení připojte MacroPad.").font(.caption).foregroundStyle(.secondary) }
-                    else if draft.controls.isEmpty { Text("Nejdřív přidejte alespoň jeden ovladač.").font(.caption).foregroundStyle(.secondary) }
-                }
+                Button(pad.busy ? "Ukládám…" : "Uložit zkratky do MacroPadu") { saveDraft() }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!pad.ready || pad.busy || draft.controls.isEmpty || !dirty)
             }
         }
         .padding(22).frame(minWidth: 820, minHeight: 620)
         .disabled(flashing)
+        .sheet(isPresented: $showSetup, onDismiss: {
+            kind = nil
+            pad.endLearning()
+        }) { setupSheet }
         .onAppear {
             pad.onSample = { mask, gap in
                 latest = mask
@@ -87,9 +91,11 @@ struct HardwareWorkspace: View {
                     MicController.shared.registerHotkey(Chord(mods: 0, code: 0x6d))
                 }
                 if saving || !dirty {
+                    let finished = saving
                     draft = project; dirty = false; saving = false
                     page = project.controls.isEmpty ? 1 : 2
-                    selected = project.controls.first?.id
+                    if !project.controls.contains(where: { $0.id == selected }) { selected = project.controls.first?.id }
+                    if finished { showSetup = false; detail = "Uloženo. Vyberte prvek v gridu a nastavte jeho zkratky." }
                 } else { detail = "Rozpracované změny zůstaly v aplikaci. Zařízení je znovu připojené; pro pokračování zapněte úpravy." }
             }
             pad.start()
@@ -102,21 +108,71 @@ struct HardwareWorkspace: View {
             if kind != nil, let lastSampleAt, Date().timeIntervalSince(lastSampleAt) > 2 {
                 lost = true; detail = "Měření bylo přerušeno. Po obnovení spojení pokus zopakujte."
             }
-            if page == 0 {
+            if showSetup && page == 0 {
                 bootVolumes = FirmwareInstaller.volumes()
                 if chosenVolume == nil || !bootVolumes.contains(chosenVolume!) { chosenVolume = bootVolumes.first }
             }
         }
+        .alert("Zahodit rozpracované změny?", isPresented: $showDiscard) {
+            Button("Zahodit", role: .destructive) { draft = pad.project; dirty = false; kind = nil; pad.endLearning() }
+            Button("Pokračovat v úpravách", role: .cancel) {}
+        } message: { Text("Konfigurace uložená v MacroPadu se nezmění.") }
+
+    }
+    private func openSetup() {
+        page = pad.ready ? (draft.controls.isEmpty ? 1 : 2) : 0
+        detail = ""; showSetup = true
+    }
+    private func saveDraft() {
+        saving = true; kind = nil; pad.save(draft)
+    }
+    private var setupSheet: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Nastavení MacroPadu").font(.title2.bold())
+                    Text(pad.message).font(.callout).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Zavřít") { showSetup = false }.disabled(pad.busy || flashing)
+            }
+            HStack {
+                step("Připojení a firmware", number: 0)
+                step("Zapojení prvků", number: 1)
+                step("Rozložení", number: 2)
+            }
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if page == 0 { installation }
+                    else if page == 1 { discovery }
+                    else { layout }
+                    if !detail.isEmpty { Text(detail).foregroundStyle(.secondary).textSelection(.enabled) }
+                }.padding(2)
+            }
+            Divider()
+            HStack {
+                Text(pad.learning ? "Poznávání je zapnuté · makra jsou dočasně vypnutá" : "Změny se uloží až potvrzením.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Spacer()
+                if page == 1 {
+                    Button("Pokračovat na rozložení") { kind = nil; page = 2 }.disabled(kind != nil || draft.controls.isEmpty || pad.busy)
+                }
+                if page == 2 {
+                    Button(pad.busy ? "Ukládám…" : "Uložit a přejít na zkratky") { saveDraft() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!pad.ready || pad.busy || draft.controls.isEmpty)
+                }
+            }
+        }
+        .padding(24).frame(width: 820, height: 680)
+        .interactiveDismissDisabled(pad.busy || flashing)
         .alert("Nahrát univerzální firmware?", isPresented: $showInstall) {
             Button("Nahrát firmware") { install() }
             Button("Zrušit", role: .cancel) {}
         } message: {
             Text("Nahradí firmware na vybraném XIAO. Párování zůstane zachované. Původní pevné rozložení bude nahrazeno průvodcem pro naučení zapojení.")
         }
-        .alert("Zahodit rozpracované změny?", isPresented: $showDiscard) {
-            Button("Zahodit", role: .destructive) { draft = pad.project; dirty = false; kind = nil; pad.cancelLearning() }
-            Button("Pokračovat v úpravách", role: .cancel) {}
-        } message: { Text("Konfigurace uložená v MacroPadu se nezmění.") }
         .alert("Odstranit ovladač i jeho akce?", isPresented: Binding(get: { removeID != nil }, set: { if !$0 { removeID = nil } })) {
             Button("Odstranit", role: .destructive) {
                 draft.controls.removeAll { $0.id == removeID }; selected = draft.controls.first?.id; removeID = nil; dirty = true
@@ -194,7 +250,7 @@ struct HardwareWorkspace: View {
                     Text(control.title)
                     Text(control.pins.map { "D\($0)" }.joined(separator: " · ")).font(.caption.monospaced()).foregroundStyle(.secondary)
                     Spacer()
-                    Button("Odstranit", role: .destructive) { removeID = control.id }.disabled(!pad.learning || pad.busy)
+                    Button("Odstranit", role: .destructive) { removeID = control.id }.disabled(!pad.ready || pad.busy)
                 }
             }
         }
@@ -203,13 +259,26 @@ struct HardwareWorkspace: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 VStack(alignment: .leading) {
-                    Text("Rozmístění a akce").font(.headline)
-                    Text("Přetáhněte prvek do buňky. Obsazené buňky si vymění pozici.").foregroundStyle(.secondary)
+                    Text(showSetup ? "Rozložení prvků" : "Vyberte tlačítko nebo encoder").font(.headline)
+                    Text(showSetup ? "Přetáhněte prvek do buňky. Obsazené buňky si vymění pozici." : "Kliknutím na prvek upravíte jeho zkratky a akce.").foregroundStyle(.secondary)
                 }
                 Spacer()
-                if !pad.learning { Button("Upravit konfiguraci") { pad.beginLearning() }.disabled(!pad.ready || pad.busy) }
-                else { Button("Přidat ovladač") { page = 1 } }
+                if showSetup { Button("Přidat ovladač") { page = 1 }.disabled(pad.busy) }
             }
+            if showSetup {
+                activityGrid
+                controlInspector
+            } else {
+                HStack(alignment: .top, spacing: 20) {
+                    activityGrid.frame(maxWidth: .infinity)
+                    controlInspector.frame(width: 300)
+                }
+            }
+            Text("Po dokončení zůstanou zapojení, grid a akce uložené v MacroPadu. Jiný Mac si je načte bez tohoto počítače.").font(.caption).foregroundStyle(.secondary)
+        }
+    }
+    private var activityGrid: some View {
+        VStack(alignment: .leading, spacing: 10) {
             TimelineView(.animation(minimumInterval: 0.05, paused: !pad.ready)) { context in
                 let now = context.date.timeIntervalSinceReferenceDate
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 8), spacing: 7) {
@@ -227,15 +296,15 @@ struct HardwareWorkspace: View {
                                 }
                                 .onDrag { NSItemProvider(object: String(control.id) as NSString) }
                             } else { Text("·").foregroundStyle(.quaternary) }
-                        }.frame(height: 66).contentShape(Rectangle())
+                        }.frame(height: showSetup ? 66 : 50).contentShape(Rectangle())
                             .overlay(RoundedRectangle(cornerRadius: 10).stroke(active ? Color.green : Color.clear, lineWidth: 2))
                             .accessibilityValue(active ? (direction > 0 ? "Otáčení doprava" : direction < 0 ? "Otáčení doleva" : "Stisknuto") : "V klidu")
                             .onTapGesture { selected = control?.id }
                             .onDrop(of: [UTType.text], isTargeted: nil) { providers in
-                                guard pad.learning, !pad.busy, let provider = providers.first else { return false }
+                                guard showSetup, pad.ready, !pad.busy, let provider = providers.first else { return false }
                                 _ = provider.loadObject(ofClass: String.self) { value, _ in
                                     guard let value, let id = Int(value) else { return }
-                                    DispatchQueue.main.async { guard pad.learning, !pad.busy else { return }; draft.move(id, x: cell % 8, y: cell / 8); dirty = true }
+                                    DispatchQueue.main.async { guard showSetup, pad.ready, !pad.busy else { return }; draft.move(id, x: cell % 8, y: cell / 8); dirty = true }
                                 }
                                 return true
                             }
@@ -243,13 +312,17 @@ struct HardwareWorkspace: View {
                 }
             }
             Text("Stisk na MacroPadu rozsvítí prvek zeleně. U encoderu se zobrazí i směr otočení.").font(.caption).foregroundStyle(.secondary)
+        }
+    }
+    @ViewBuilder private var controlInspector: some View {
             if let index = draft.controls.firstIndex(where: { $0.id == selected }) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(draft.controls[index].title).font(.headline)
+                    if showSetup {
                     HStack {
                         Text("Piny: " + draft.controls[index].pins.map { "D\($0)" }.joined(separator: ", ")).font(.caption.monospaced())
                         Spacer()
-                        Button("Odstranit prvek", role: .destructive) { removeID = selected }.disabled(!pad.learning || pad.busy)
+                        Button("Odstranit prvek", role: .destructive) { removeID = selected }.disabled(!pad.ready || pad.busy)
                     }
                     HStack {
                         Picker("Sloupec", selection: Binding(get: { draft.controls[index].x }, set: { draft.move(draft.controls[index].id, x: $0, y: draft.controls[index].y); dirty = true })) {
@@ -259,6 +332,8 @@ struct HardwareWorkspace: View {
                             ForEach(0..<8) { Text(String($0 + 1)).tag($0) }
                         }
                     }
+                    }
+                    if !showSetup {
                     ForEach(0..<(draft.controls[index].kind == .encoder ? 3 : 1), id: \.self) { action in
                         HardwareActionEditor(title: ["Stisk", "Doleva", "Doprava"][action], macro: Binding(
                             get: { draft.controls.first(where: { $0.id == selected })?.actions[action] ?? MacroDef() },
@@ -267,10 +342,12 @@ struct HardwareWorkspace: View {
                                 draft.controls[current].actions[action] = value; dirty = true
                             }))
                     }
-                }.id(selected).disabled(!pad.learning || pad.busy)
+                    }
+                }.id(selected).disabled(!pad.ready || pad.busy)
             }
-            Text("Po dokončení zůstanou zapojení, grid a akce uložené v MacroPadu. Jiný Mac si je načte bez tohoto počítače.").font(.caption).foregroundStyle(.secondary)
-        }
+            else if !showSetup {
+                Text("Vyberte prvek v gridu.").foregroundStyle(.secondary).padding()
+            }
     }
     private func begin(_ newKind: ControlKind) {
         let free = 11 - draft.controls.flatMap(\.pins).count

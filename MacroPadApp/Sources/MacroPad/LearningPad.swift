@@ -22,6 +22,7 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
     private var sampleTimeout: Timer?
     private var sequence: UInt16?
     private var beginPending = false
+    private var endingLearning = false
     private var writing = false
     private var scanning = false
     private var lastSampleAt: Date?
@@ -65,7 +66,7 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
         peripheral = nil; reset()
     }
     private func reset() {
-        ready = false; busy = false; learning = false; beginPending = false; writing = false; packets = []; expected = nil
+        ready = false; busy = false; learning = false; beginPending = false; endingLearning = false; writing = false; packets = []; expected = nil
         config = nil; command = nil; events = nil; sequence = nil
         timeout?.invalidate(); heartbeat?.invalidate(); sampleTimeout?.invalidate(); lastSampleAt = nil; receivingSamples = false
     }
@@ -162,7 +163,10 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
         guard error == nil else { fail("Zápis selhal: \(error!.localizedDescription)"); return }
         timeout?.invalidate()
         if !packets.isEmpty { sendNext(); return }
-        if expected != nil {
+        if endingLearning {
+            endingLearning = false; learning = false; busy = false
+            message = "MacroPad je připravený · běžné akce jsou zapnuté"
+        } else if expected != nil {
             learning = false; heartbeat?.invalidate()
             if let config { armTimeout(); peripheral.readValue(for: config) }
         } else if busy {
@@ -173,6 +177,11 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
                 self.packets = [Data([1])]; self.sendNext()
             }
         }
+    }
+    func endLearning() {
+        guard ready, learning, !busy else { return }
+        heartbeat?.invalidate(); sampleTimeout?.invalidate()
+        endingLearning = true; busy = true; packets = [Data([2])]; sendNext()
     }
     func cancelLearning() {
         heartbeat?.invalidate(); sampleTimeout?.invalidate(); receivingSamples = false; learning = false
