@@ -1,19 +1,104 @@
 name: Build macOS app
-on: [push, pull_request, workflow_dispatch]
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
 permissions:
   contents: read
+
+concurrency:
+  group: macos-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
 jobs:
   build:
-    runs-on: macos-latest
+    name: Test and build universal app
+    runs-on: macos-15
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
       - name: Test BLE protocol
         run: swift test --package-path MacroPadApp
-      - name: Build and sign
-        run: ./MacroPadApp/build.sh
-      - name: Package
-        run: ditto -c -k --sequesterRsrc --keepParent MacroPadApp/dist/MacroPad.app MacroPad.zip
-      - uses: actions/upload-artifact@v4
+      - name: Build and sign for Apple Silicon and Intel
+        run: ./MacroPadApp/build.sh --arch arm64 --arch x86_64
+      - name: Set version from release tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          python3 - <<'PYTHON'
+          import os, plistlib, re
+          from pathlib import Path
+          tag = os.environ["GITHUB_REF_NAME"]
+          match = re.fullmatch(r"v(\d+\.\d+\.\d+)(?:[-+][0-9A-Za-z.+-]+)?", tag)
+          if not match:
+              raise SystemExit("Release tag must be vMAJOR.MINOR.PATCH with an optional suffix")
+          path = Path("MacroPadApp/dist/MacroPad.app/Contents/Info.plist")
+          info = plistlib.loads(path.read_bytes())
+          info["CFBundleShortVersionString"] = match.group(1)
+          info["CFBundleVersion"] = os.environ["GITHUB_RUN_NUMBER"]
+          path.write_bytes(plistlib.dumps(info))
+          PYTHON
+          codesign --force --deep --sign - MacroPadApp/dist/MacroPad.app
+      - name: Verify app bundle
+        run: |
+          lipo -verify_arch arm64 x86_64 MacroPadApp/dist/MacroPad.app/Contents/MacOS/MacroPad
+          plutil -lint MacroPadApp/dist/MacroPad.app/Contents/Info.plist
+          codesign --verify --deep --strict --verbose=2 MacroPadApp/dist/MacroPad.app
+      - name: Package app and checksum
+        run: |
+          mkdir -p artifacts/macos
+          ditto -c -k --sequesterRsrc --keepParent MacroPadApp/dist/MacroPad.app artifacts/macos/MacroPad-macOS-universal.zip
+          cd artifacts/macos
+          shasum -a 256 MacroPad-macOS-universal.zip > SHA256SUMS.txt
+      - name: Upload downloadable app
+        id: artifact
+        uses: actions/upload-artifact@v7
         with:
-          name: MacroPad-macOS
-          path: MacroPad.zip
+          name: MacroPad-macOS-universal
+          path: artifacts/macos/*
+          if-no-files-found: error
+          retention-days: 30
+      - name: Add download link to build summary
+        env:
+          ARTIFACT_URL: ${{ steps.artifact.outputs.artifact-url }}
+        run: |
+          {
+            echo '## MacroPad for macOS'
+            echo
+            echo "[Download app and SHA-256 checksum]($ARTIFACT_URL)"
+            echo
+            echo 'Universal app: Apple Silicon + Intel, macOS 13 or later.'
+            echo 'Ad-hoc signed; not notarized by Apple.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  release:
+    name: Attach app to version release
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Download tested build
+        run: gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name MacroPad-macOS-universal --dir dist
+      - name: Create release if needed and attach app
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            flags=()
+            if [[ "$GITHUB_REF_NAME" == *-* ]]; then
+              flags+=(--prerelease)
+            fi
+            gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+              --verify-tag --generate-notes "${flags[@]}"
+          fi
+          gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" \
+            dist/MacroPad-macOS-universal.zip dist/SHA256SUMS.txt --clobber

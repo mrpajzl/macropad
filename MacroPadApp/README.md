@@ -38,3 +38,22 @@ open dist/MacroPad.app
 
 macOS 13+, Xcode Command Line Tools. Protokol BLE je popsán v
 [`../zmk-config-macropad/docs/ble-protocol.md`](../zmk-config-macropad/docs/ble-protocol.md).
+
+## Automatické sestavení na GitHubu
+
+Workflow **Build macOS app** se spouští při každém pushi, pull requestu a ručně
+přes **Actions → Build macOS app → Run workflow**. Spustí testy, sestaví jednu
+univerzální appku pro Apple Silicon a Intel, ověří obě architektury i podpis
+balíčku a uloží ZIP a SHA-256 součet do artefaktu **MacroPad-macOS-universal**.
+Odkaz na stažení je v souhrnu běhu; artefakt se uchovává 30 dní.
+
+Při pushi tagu `vMAJOR.MINOR.PATCH` (volitelně s příponou) se úspěšně sestavený ZIP automaticky přiloží ke GitHub Release.
+Pokud release neexistuje, pipeline jej vytvoří. Tag s pomlčkou (např. `v0.2.0-rc2`)
+vytvoří předběžnou verzi. Verze v appce se nastaví podle tagu. Existující přílohy firmwaru zůstávají zachované.
+Appka je podepsaná ad-hoc, bez Apple Developer certifikátu a notarizace.
+
+Stejný univerzální build lokálně:
+
+```sh
+./build.sh --arch arm64 --arch x86_64
+```
