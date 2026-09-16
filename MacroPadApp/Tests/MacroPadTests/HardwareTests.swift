@@ -3,6 +3,31 @@ import CryptoKit
 @testable import MacroPad
 
 final class HardwareTests: XCTestCase {
+    func testLiveActivityPressReleaseDirectionAndGap() {
+        let controls = [HardwareControl(id: 7, kind: .button, pin: 2),
+                        HardwareControl(id: 3, kind: .encoder, pin: 3, a: 4, b: 5, x: 1)]
+        var activity = HardwareActivity()
+        activity.update(0, controls: controls, gap: false, at: 0)
+        activity.update(4, controls: controls, gap: false, at: 0.1)
+        XCTAssertTrue(activity.isActive(7, at: 0.11))
+        XCTAssertFalse(activity.isActive(3, at: 0.11))
+        activity.update(0, controls: controls, gap: false, at: 0.2)
+        XCTAssertTrue(activity.isActive(7, at: 0.25))
+        XCTAssertFalse(activity.isActive(7, at: 0.5))
+        for (i, mask) in [UInt16(16), 48, 32, 0].enumerated() {
+            activity.update(mask, controls: controls, gap: false, at: 1 + Double(i) * 0.01)
+        }
+        XCTAssertEqual(activity.direction(3, at: 1.04), 1)
+        for (i, mask) in [UInt16(32), 48, 16, 0].enumerated() {
+            activity.update(mask, controls: controls, gap: false, at: 2 + Double(i) * 0.01)
+        }
+        XCTAssertEqual(activity.direction(3, at: 2.04), -1)
+        activity.update(16, controls: controls, gap: true, at: 3)
+        activity.update(0, controls: controls, gap: false, at: 3.01)
+        XCTAssertFalse(activity.isActive(3, at: 3.02))
+        activity.update(4, controls: controls, gap: false, at: 4)
+        XCTAssertFalse(activity.isActive(7, at: 6)) // Lost connection cannot leave a stuck highlight.
+    }
     func testDeviceRoundTripAndStableIDsAfterMove() throws {
         var project = HardwareProject(controls: [
             HardwareControl(id: 7, kind: .encoder, pin: 3, a: 4, b: 5, x: 1, y: 0,

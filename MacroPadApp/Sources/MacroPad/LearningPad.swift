@@ -125,6 +125,7 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
         do {
             let loaded = try HardwareProject.decode(data)
             if let expected, expected != data { throw BLEProtocol.Failure(message: "Ověření zápisu nesouhlasí; načtěte konfiguraci znovu.") }
+            if let events, !events.isNotifying { peripheral.setNotifyValue(true, for: events) }
             project = loaded; ready = true; busy = false; timeout?.invalidate()
             central.stopScan()
             message = expected == nil ? "MacroPad rozpoznán · \(loaded.controls.count) prvků načteno ze zařízení" : "Hotovo. Konfigurace je uložená a ověřená v MacroPadu."

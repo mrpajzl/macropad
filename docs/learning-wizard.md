@@ -63,3 +63,14 @@ v univerzální variantě není. Základní firmware nemaže existující párov
 
 Protokol: `zmk-config-macropad/docs/learning-protocol.md`.
 Provenience přibaleného firmware: `MacroPadApp/Firmware/firmware.json`.
+
+## Živé zvýraznění v gridu
+
+Při připojené appce stisk fyzického tlačítka nebo encoderu rozsvítí odpovídající
+buňku zeleně. Držený stisk zůstane zvýrazněný; krátký stisk je vidět alespoň
+0,3 sekundy. Otočení encoderu krátce zobrazí šipku směru. Zpětná vazba sleduje
+ID prvku, takže funguje i po přesunutí v gridu a s rozpracovaným rozložením.
+
+Od firmware 0.3.0-rc5 appka dostává stav pinů i mimo režim učení. Samotné
+zobrazení gridu tedy nevypíná makra ani nezapisuje konfiguraci. Při odpojení
+nebo výpadku vzorků zvýraznění zhasne. Vyžaduje aktuální appku i firmware.

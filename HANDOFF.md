@@ -1,3 +1,23 @@
+# Aktuální stav — živý grid rc5
+
+- HardwareWorkspace zobrazuje zelený stisk/pulz 300 ms a šipku směru encoderu.
+  HardwareActivity mapuje stabilní ID na piny návrhu; výpadek zhasne do 1,5 s.
+- Firmware 8389557 posílá vzorky šifrovaným odběratelům i mimo learning lease.
+  Odběr neblokuje HID ani nezapisuje nastavení; aplikace ho zapíná po načtení.
+- Firmware CI 35092130156 prošlo; zdrojové docs doplněny v f60782a.
+- Debug UF2 fyzicky nahrán, SHA256
+  9842fb4de31a5b62186df0a27d31574346800fd064c68b7a3bb5290f42af29aa.
+- Nová aplikace nainstalována a spuštěna v /Applications/MacroPad.app.
+  Uživatel před restartem potvrdil uloženou konfiguraci.
+- 11 Swift testů prošlo včetně stisku, puštění, obou směrů, mezery ve vzorcích
+  a výpadku spojení. Universal build prošel; nový rc5 bundle zvlášť ověřen.
+- CUA stále vrací native pipe closed. Čekáme na fyzické potvrzení gridu uživatelem.
+- Pozor: USB boot log hlásí configured=0, přestože uživatel uvedl uložený layout.
+  Pokud chybí rozložení, ověřit skutečné načtení z konkrétního padu; nic nemazat.
+- Následují historické záznamy.
+
+---
+
 # Aktuální stav — učení vstupů rc4
 
 - Uživatel hlásil 0 zachycených změn. Běžely dvě kopie appky současně.

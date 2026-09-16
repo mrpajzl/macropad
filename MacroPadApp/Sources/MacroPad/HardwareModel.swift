@@ -120,3 +120,44 @@ struct PinLearner {
         return (pins[0], pins[1], total > 0 ? 1 : -1)
     }
 }
+
+/// Visual feedback keyed by stable control IDs, independent of grid position.
+struct HardwareActivity {
+    private var previous: UInt16?
+    private var accumulators: [Int: Int] = [:]
+    private var pressed: Set<Int> = []
+    private var pulses: [Int: (time: TimeInterval, direction: Int)] = [:]
+    private var lastSample: TimeInterval?
+
+    mutating func update(_ mask: UInt16, controls: [HardwareControl], gap: Bool, at time: TimeInterval) {
+        if gap { previous = nil; accumulators = [:]; pulses = [:] }
+        let before = previous
+        previous = mask; lastSample = time
+        let oldPressed = pressed
+        pressed = Set(controls.filter { mask & (1 << $0.pin) != 0 }.map(\.id))
+        for control in controls {
+            if pressed.contains(control.id), !oldPressed.contains(control.id) {
+                pulses[control.id] = (time, 0)
+            }
+            guard control.kind == .encoder, let before else { continue }
+            func state(_ value: UInt16) -> Int {
+                Int((value >> control.a) & 1) * 2 + Int((value >> control.b) & 1)
+            }
+            let a = state(before), b = state(mask)
+            if a ^ b == 3 { accumulators[control.id] = 0; continue }
+            let sum = (accumulators[control.id] ?? 0) + PinLearner.quadrature[a * 4 + b]
+            if abs(sum) >= 4 {
+                pulses[control.id] = (time, sum > 0 ? 1 : -1)
+                accumulators[control.id] = 0
+            } else { accumulators[control.id] = sum }
+        }
+    }
+    func isActive(_ id: Int, at time: TimeInterval) -> Bool {
+        guard let lastSample, time - lastSample < 1.5 else { return false }
+        return pressed.contains(id) || pulses[id].map { time - $0.time < 0.3 } == true
+    }
+    func direction(_ id: Int, at time: TimeInterval) -> Int {
+        guard isActive(id, at: time), let pulse = pulses[id], time - pulse.time < 0.3 else { return 0 }
+        return pulse.direction
+    }
+}

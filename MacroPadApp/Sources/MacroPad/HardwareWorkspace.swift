@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct HardwareWorkspace: View {
     @ObservedObject var pad: LearningPad
     @State private var draft = HardwareProject()
+    @State private var activity = HardwareActivity()
     @State private var dirty = false
     @State private var page = 0
     @State private var selected: Int?
@@ -72,6 +73,7 @@ struct HardwareWorkspace: View {
         .onAppear {
             pad.onSample = { mask, gap in
                 latest = mask
+                activity.update(mask, controls: draft.controls, gap: gap, at: Date().timeIntervalSinceReferenceDate)
                 lastSampleAt = Date()
                 guard kind != nil else { return }
                 if gap { lost = true; detail = "Přenos ztratil vzorek. Klikněte na Zkusit znovu a pohyb zopakujte pomaleji." }
@@ -92,7 +94,7 @@ struct HardwareWorkspace: View {
         }
         .onDisappear { pad.disconnect() }
         .onChange(of: pad.ready) { ready in
-            if !ready { kind = nil; latest = nil; lastSampleAt = nil; saving = false }
+            if !ready { activity = HardwareActivity(); kind = nil; latest = nil; lastSampleAt = nil; saving = false }
         }
         .onReceive(timer) { _ in
             if kind != nil, let lastSampleAt, Date().timeIntervalSince(lastSampleAt) > 2 {
@@ -206,30 +208,39 @@ struct HardwareWorkspace: View {
                 if !pad.learning { Button("Upravit konfiguraci") { pad.beginLearning() }.disabled(!pad.ready || pad.busy) }
                 else { Button("Přidat ovladač") { page = 1 } }
             }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 8), spacing: 7) {
-                ForEach(0..<64) { cell in
-                    let control = draft.controls.first { $0.x == cell % 8 && $0.y == cell / 8 }
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 10).fill(control?.id == selected ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(control == nil ? 0.05 : 0.12))
-                        if let control {
-                            VStack(spacing: 4) {
-                                Image(systemName: control.kind == .encoder ? "dial.low.fill" : "square.fill").font(.title2)
-                                Text(control.title).font(.caption)
+            TimelineView(.animation(minimumInterval: 0.05, paused: !pad.ready)) { context in
+                let now = context.date.timeIntervalSinceReferenceDate
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 8), spacing: 7) {
+                    ForEach(0..<64) { cell in
+                        let control = draft.controls.first { $0.x == cell % 8 && $0.y == cell / 8 }
+                        let active = control.map { activity.isActive($0.id, at: now) } ?? false
+                        let direction = control.map { activity.direction($0.id, at: now) } ?? 0
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 10).fill(active ? Color.green.opacity(0.28) : control?.id == selected ? Color.accentColor.opacity(0.2) : Color.secondary.opacity(control == nil ? 0.05 : 0.12))
+                            if let control {
+                                VStack(spacing: 4) {
+                                    Image(systemName: direction > 0 ? "arrow.clockwise" : direction < 0 ? "arrow.counterclockwise" : control.kind == .encoder ? "dial.low.fill" : "square.fill").font(.title2)
+                                        .foregroundStyle(active ? Color.green : Color.primary)
+                                    Text(control.title).font(.caption)
+                                }
+                                .onDrag { NSItemProvider(object: String(control.id) as NSString) }
+                            } else { Text("·").foregroundStyle(.quaternary) }
+                        }.frame(height: 66).contentShape(Rectangle())
+                            .overlay(RoundedRectangle(cornerRadius: 10).stroke(active ? Color.green : Color.clear, lineWidth: 2))
+                            .accessibilityValue(active ? (direction > 0 ? "Otáčení doprava" : direction < 0 ? "Otáčení doleva" : "Stisknuto") : "V klidu")
+                            .onTapGesture { selected = control?.id }
+                            .onDrop(of: [UTType.text], isTargeted: nil) { providers in
+                                guard pad.learning, !pad.busy, let provider = providers.first else { return false }
+                                _ = provider.loadObject(ofClass: String.self) { value, _ in
+                                    guard let value, let id = Int(value) else { return }
+                                    DispatchQueue.main.async { guard pad.learning, !pad.busy else { return }; draft.move(id, x: cell % 8, y: cell / 8); dirty = true }
+                                }
+                                return true
                             }
-                            .onDrag { NSItemProvider(object: String(control.id) as NSString) }
-                        } else { Text("·").foregroundStyle(.quaternary) }
-                    }.frame(height: 66).contentShape(Rectangle())
-                        .onTapGesture { selected = control?.id }
-                        .onDrop(of: [UTType.text], isTargeted: nil) { providers in
-                            guard pad.learning, !pad.busy, let provider = providers.first else { return false }
-                            _ = provider.loadObject(ofClass: String.self) { value, _ in
-                                guard let value, let id = Int(value) else { return }
-                                DispatchQueue.main.async { guard pad.learning, !pad.busy else { return }; draft.move(id, x: cell % 8, y: cell / 8); dirty = true }
-                            }
-                            return true
-                        }
+                    }
                 }
             }
+            Text("Stisk na MacroPadu rozsvítí prvek zeleně. U encoderu se zobrazí i směr otočení.").font(.caption).foregroundStyle(.secondary)
             if let index = draft.controls.firstIndex(where: { $0.id == selected }) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(draft.controls[index].title).font(.headline)
