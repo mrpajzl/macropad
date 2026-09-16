@@ -4,7 +4,13 @@
 - Dřívější deep sleep po 15 minutách odpojoval BLE a první stisk mohl propadnout.
 - Oprava zachovává spojení za cenu vyšší klidové spotřeby; výdrž není změřená.
 - Aktualizace pouze hlavním UF2, bez `settings_reset`, zachová párování i makra.
-- Vydání v0.2.0-rc3; fyzická instalace a kontrola po >15 minutách na baterii čekají.
+- Vydání v0.2.0-rc3: firmware úspěšně nahrán na XIAO-SENSE po přepojení z druhého Macu.
+- SHA-256 UF2: `4f9768e7232d9ec320516df381f983435a4a3cdb06ce013c7538782ceff88e78`.
+- Ověřen Board-ID, úplný zápis i fsync; bootloader disk zmizel a Mac znovu
+  registroval MacroPad USB HID (`1d50:615e`). Settings reset nebyl použit.
+- Firmware CI 35081346764 prošlo; efektivní Kconfig má idle 30 s, BLE a settings
+  zapnuté, deep sleep vypnutý. Fyzický test prvního stisku po >15 minutách
+  na baterii stále čeká na potvrzení uživatelem.
 
 ---
 
