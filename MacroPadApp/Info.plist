@@ -7,7 +7,7 @@
 	<key>CFBundleExecutable</key>
 	<string>MacroPad</string>
 	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
+	<string>MacroPadIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>cz.zraly.macropad</string>
 	<key>CFBundleName</key>

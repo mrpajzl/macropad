@@ -1,3 +1,15 @@
+# Aktuální stav — generovaná ikona
+
+- Vestavěný imagegen vytvořil graphite/cyan macOS ikonu (3 klávesy + encoder).
+- Master, ICNS a přesný prompt v MacroPadApp/Artwork. ICNS obsahuje 16–1024 px.
+- build.sh a Info.plist používají MacroPadIcon; universal build prošel.
+  ICNS dekódován a vizuálně ověřen i při 128 px, alpha zachována.
+- Ikona + odkaz v plist aktualizovány i v /Applications/MacroPad.app, codesign OK.
+  Běžící appka NERESTARTOVÁNA kvůli rozpracovaným změnám z předchozího UI stavu.
+  Dock může novou ikonu ukázat až při příštím spuštění.
+
+---
+
 # Aktuální změna — přehled akcí encoderu
 
 - Opakované přepínače typu akce u encoderu nahrazeny třemi souhrnnými řádky:

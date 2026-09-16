@@ -7,7 +7,7 @@ APP=dist/MacroPad.app
 rm -rf "$APP"; mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN_DIR/MacroPad" "$APP/Contents/MacOS/MacroPad"
 cp Info.plist "$APP/Contents/"
-[ -f AppIcon.icns ] && cp AppIcon.icns "$APP/Contents/Resources/"
+cp Artwork/MacroPadIcon.icns "$APP/Contents/Resources/MacroPadIcon.icns"
 cp Firmware/macropad-learn.uf2 Firmware/firmware.json "$APP/Contents/Resources/"
 codesign --force --deep --sign - "$APP"
 echo "OK → $APP"
