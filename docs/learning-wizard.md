@@ -1,7 +1,6 @@
 # MacroPad Studio: první sestavení a přenos mezi Macy
 
-Od appky 0.3.0 je nová záložka **Vlastní MacroPad**. Původní konfigurátor
-zůstává dostupný pro starý firmware a CH552.
+Appka má jedinou hlavní obrazovku pro MacroPad s univerzálním firmwarem.
 
 Hlavní obrazovka obsahuje živý grid a vedle něj editor zkratek vybraného prvku.
 Běžné změny akcí uložíte tlačítkem **Uložit zkratky do MacroPadu**.

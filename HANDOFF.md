@@ -1,3 +1,12 @@
+# Aktuální stav — odstraněny dva konfigurátory
+
+- Po screenshotu uživatele odstraněn TabView i přístup k Původnímu konfigurátoru.
+  Hlavní okno obsahuje jen HardwareWorkspace; průvodce zůstává v nastavení.
+- Legacy AppState se neinicializuje; standardní F18 mic hotkey zachován explicitně.
+- Universal build a codesign ověření prošly. Nová appka nainstalována a spuštěna.
+
+---
+
 # Aktuální změna — nastavení zařízení v popupu
 
 - Hlavní obrazovka: živý grid vlevo, editor akcí vybraného prvku vpravo.
