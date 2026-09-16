@@ -1,3 +1,18 @@
+# Aktuální stav — vizualizace nakonfigurovaného zařízení
+
+- Nový DevicePreview nahrazuje hlavní 8×8 grid. Zobrazuje oříznuté fyzické
+  rozložení v tmavém těle, klávesy s popisky akcí, kruhový encoder a výběr cyan.
+- Aktivita zůstává zelená, otočení ukazuje směr. Kliknutí vybírá editor zkratek.
+  8×8 editor zůstává pouze v nastavení. Vnitřní mezery a relativní polohy zachovány.
+- Velikost prvků se přizpůsobuje šířce; velká rozložení mají horizontální posun.
+- Samotné tělo zařízení vyrenderováno přes SwiftUI ImageRenderer a vizuálně
+  zkontrolováno (/tmp/macropad-device-preview.png, ukázková data). Celý TimelineView
+  ImageRenderer nerenderuje; běžné okno přes CUA stále nedostupné.
+- Universal build a codesign ověření prošly; app aktualizována a spuštěna.
+  Firmware ani konfigurace se neměnily.
+
+---
+
 # Aktuální stav — odstraněny dva konfigurátory
 
 - Po screenshotu uživatele odstraněn TabView i přístup k Původnímu konfigurátoru.

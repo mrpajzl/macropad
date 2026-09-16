@@ -2,7 +2,9 @@
 
 Appka má jedinou hlavní obrazovku pro MacroPad s univerzálním firmwarem.
 
-Hlavní obrazovka obsahuje živý grid a vedle něj editor zkratek vybraného prvku.
+Hlavní obrazovka obsahuje kompaktní náhled zařízení a vedle něj editor zkratek
+vybraného prvku. Náhled zachovává polohy prvků, zobrazuje klávesy s jejich akcemi
+a kulaté encodery. Prázdné okraje mřížky se nezobrazují.
 Běžné změny akcí uložíte tlačítkem **Uložit zkratky do MacroPadu**.
 Průvodce je v popupu **Nastavení MacroPadu**: připojení a firmware, zapojení
 a rozložení prvků. **Uložit a přejít na zkratky** po ověřeném zápisu popup

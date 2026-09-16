@@ -270,11 +270,12 @@ struct HardwareWorkspace: View {
                 controlInspector
             } else {
                 HStack(alignment: .top, spacing: 20) {
-                    activityGrid.frame(maxWidth: .infinity)
+                    DevicePreview(controls: draft.controls, activity: activity, connected: pad.ready, selected: $selected)
+                        .frame(maxWidth: .infinity)
                     controlInspector.frame(width: 300)
                 }
             }
-            Text("Po dokončení zůstanou zapojení, grid a akce uložené v MacroPadu. Jiný Mac si je načte bez tohoto počítače.").font(.caption).foregroundStyle(.secondary)
+            if showSetup { Text("Rozložení se uloží přímo do MacroPadu.").font(.caption).foregroundStyle(.secondary) }
         }
     }
     private var activityGrid: some View {
