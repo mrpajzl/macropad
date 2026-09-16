@@ -18,6 +18,8 @@ struct HostProfiles {
     let sequence: UInt8
     let pending: Bool
     let failed: Bool
+    let canRepair: Bool
+    let repairing: Bool
     let capacity: Int
     let used: Int
     let hosts: [SavedHost]
@@ -55,8 +57,18 @@ struct HostProfiles {
         }
         return HostProfiles(active: Int(b[2]), usbOutput: b[4] == 0,
                             pairingSlot: b[5] == 255 ? nil : Int(b[5]), pairingSeconds: Int(b[6]) | Int(b[7]) << 8,
-                            sequence: b[8], pending: b[9] != 0, failed: b[10] != 0, capacity: Int(b[1]), used: used,
+                            sequence: b[8], pending: b[9] != 0, failed: b[10] != 0, canRepair: b[11] & 1 != 0, repairing: b[11] & 2 != 0, capacity: Int(b[1]), used: used,
                             hosts: hosts, date: Date())
+    }
+    static func repairPacket(_ host: SavedHost) -> Data? {
+        guard !host.thisMac, (0..<10).contains(host.target), host.id.count == 14 else { return nil }
+        let chars = Array(host.id)
+        var address: [UInt8] = []
+        for i in stride(from: 0, to: 14, by: 2) {
+            guard let byte = UInt8(String(chars[i...i+1]), radix: 16) else { return nil }
+            address.append(byte)
+        }
+        return Data([6, UInt8(host.target), 0xa5] + address)
     }
     static func renamePacket(slot: Int, name: String) -> Data? {
         let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)

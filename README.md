@@ -133,3 +133,10 @@ vrátí předchozí profil; návrat funguje i po restartu uprostřed párování
 Názvy jsou uložené v zařízení a svázané s identitou hosta. Více slotů se stejnou
 Bluetooth identitou se zobrazuje jako jedna položka s vysvětlením duplicity;
 žádné párovací klíče se tím nemažou. Odlišné identity se automaticky neslučují.
+
+Pokud jste na již uloženém počítači použili **Zapomenout zařízení**, MacroPad
+stále uchovává původní klíč. V seznamu zařízení použijte **Obnovit párování**
+(ikona kruhových šipek) u tohoto počítače. Po výslovném potvrzení se odstraní
+pouze jeho starý klíč a otevře párování ve stejném slotu. Ostatní počítače a
+konfigurace zůstanou zachované. Firmware ověřuje identitu cíle a nedovolí takto
+zrušit spojení s Macem, z něhož příkaz přichází. Zrušení obnovy starý klíč nevrátí.

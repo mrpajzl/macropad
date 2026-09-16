@@ -6,6 +6,8 @@ struct HostManagerView: View {
     @State private var renaming: SavedHost?
     @State private var name = ""
     @State private var namingPending = false
+    @State private var repairingHost: SavedHost?
+    @State private var confirmRepair = false
     var body: some View {
         TimelineView(.periodic(from: .now, by: 3)) { _ in content }
     }
@@ -51,6 +53,11 @@ struct HostManagerView: View {
                                     }
                                 }
                                 Spacer()
+                                if snapshot.canRepair && !host.thisMac && snapshot.pairingSlot == nil {
+                                    Button { repairingHost = host; confirmRepair = true } label: { Image(systemName: "arrow.triangle.2.circlepath") }
+                                        .help("Obnovit párování, pokud počítač MacroPad zapomněl")
+                                        .accessibilityLabel("Obnovit párování: \(host.title)")
+                                }
                                 Button { renaming = host; name = host.name; namingPending = false } label: { Image(systemName: "pencil") }.help("Pojmenovat zařízení")
                                 Button(host.selected && !snapshot.usbOutput ? "Vybráno" : "Ovládat") { pad.manageHost(Data([1, UInt8(host.target)])) }
                                     .buttonStyle(StudioButton(prominent: !(host.selected && !snapshot.usbOutput)))
@@ -63,9 +70,9 @@ struct HostManagerView: View {
                 if snapshot.pairingSlot != nil {
                     HStack {
                         VStack(alignment: .leading, spacing: 6) {
-                            Label("Párování nového zařízení · \(snapshot.pairingSeconds) s", systemImage: "antenna.radiowaves.left.and.right")
+                            Label("\(snapshot.repairing ? "Obnova párování" : "Párování nového zařízení") · \(snapshot.pairingSeconds) s", systemImage: "antenna.radiowaves.left.and.right")
                                 .foregroundStyle(Studio.accent)
-                            Text("Na novém počítači otevřete Bluetooth a připojte MacroPad. Po vypršení se vrátí původní výběr.")
+                            Text(snapshot.repairing ? "Na opravovaném počítači zapomeňte starý záznam MacroPadu, pokud tam ještě je, a znovu jej připojte. Starý klíč byl odstraněn; po vypršení se vrátí výběr tohoto Macu." : "Na novém počítači otevřete Bluetooth a připojte MacroPad. Po vypršení se vrátí původní výběr.")
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -93,6 +100,15 @@ struct HostManagerView: View {
         .padding(28).frame(width: 690).background(Studio.background).preferredColorScheme(.dark)
         .buttonStyle(StudioButton()).tint(Studio.accent)
         .onAppear { pad.refreshHosts() }
+        .alert("Obnovit párování zařízení \(repairingHost?.title ?? "")?", isPresented: $confirmRepair) {
+            Button("Zrušit", role: .cancel) { repairingHost = nil }
+            Button("Odstranit starý klíč a spárovat", role: .destructive) {
+                if let host = repairingHost, let packet = HostProfiles.repairPacket(host) { pad.manageHost(packet) }
+                repairingHost = nil
+            }
+        } message: {
+            Text("MacroPad odstraní starý párovací klíč pouze tohoto počítače. Potom jej musíte na tomto počítači znovu spárovat. Zrušení následného párování starý klíč nevrátí. Ostatní počítače a konfigurace tlačítek zůstanou zachované.")
+        }
         .sheet(item: $renaming) { host in
             VStack(alignment: .leading, spacing: 18) {
                 Text("Pojmenovat zařízení").font(.title2.bold())

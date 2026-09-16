@@ -40,4 +40,14 @@ final class HostProfilesTests: XCTestCase {
         XCTAssertEqual(HostProfiles.renamePacket(slot: 1, name: " MacBook doma "), Data([2,1]) + Data("MacBook doma".utf8))
         XCTAssertEqual(HostProfiles.renamePacket(slot: 1, name: String(repeating: "ě", count: 9))?.count, 20)
     }
+    func testRepairRequiresAnotherHostAndIncludesExpectedIdentity() throws {
+        var b = snapshot(); b[11] = 3
+        let profiles = try XCTUnwrap(HostProfiles.decode(Data(b)))
+        XCTAssertTrue(profiles.canRepair)
+        XCTAssertTrue(profiles.repairing)
+        XCTAssertNil(HostProfiles.repairPacket(profiles.hosts[0]))
+        XCTAssertEqual(HostProfiles.repairPacket(profiles.hosts[1]), Data([6,2,0xa5,0,43,2,3,4,5,6]))
+        XCTAssertFalse(try XCTUnwrap(HostProfiles.decode(Data(snapshot()))).canRepair)
+    }
+
 }
