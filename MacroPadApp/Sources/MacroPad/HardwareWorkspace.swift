@@ -366,14 +366,13 @@ struct HardwareWorkspace: View {
                     }
                     }
                     if !showSetup {
-                    ForEach(0..<(draft.controls[index].kind == .encoder ? 3 : 1), id: \.self) { action in
-                        HardwareActionEditor(title: ["Stisk", "Doleva", "Doprava"][action], macro: Binding(
-                            get: { draft.controls.first(where: { $0.id == selected })?.actions[action] ?? MacroDef() },
-                            set: { value in
+                        ControlActionsEditor(kind: draft.controls[index].kind, actions: Binding(
+                            get: { draft.controls.first(where: { $0.id == selected })?.actions ?? [MacroDef(), MacroDef(), MacroDef()] },
+                            set: { actions in
                                 guard let current = draft.controls.firstIndex(where: { $0.id == selected }) else { return }
-                                draft.controls[current].actions[action] = value; dirty = true
+                                draft.controls[current].actions = actions; dirty = true
                             }))
-                    }
+
                     }
                 }.id(selected).disabled(!pad.ready || pad.busy)
             }
@@ -434,6 +433,50 @@ struct HardwareWorkspace: View {
     }
 }
 
+struct ControlActionsEditor: View {
+    let kind: ControlKind
+    @Binding var actions: [MacroDef]
+    @State private var editing: Int?
+    private let titles = ["Stisk", "Doleva", "Doprava"]
+    private let symbols = ["hand.tap", "arrow.counterclockwise", "arrow.clockwise"]
+
+    var body: some View {
+        if kind == .button {
+            HardwareActionEditor(title: "Stisk", macro: $actions[0])
+        } else {
+            VStack(alignment: .leading, spacing: 7) {
+                ForEach(0..<3, id: \.self) { index in
+                    Button { editing = editing == index ? nil : index } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: symbols[index]).font(.system(size: 17))
+                                .foregroundStyle(Studio.accent).frame(width: 22)
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(titles[index]).font(.system(size: 10, weight: .medium)).foregroundStyle(.secondary)
+                                Text(actions[index].previewTitle).font(.system(size: 13, weight: .medium))
+                                    .lineLimit(2).multilineTextAlignment(.leading)
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: editing == index ? "chevron.down" : "chevron.right")
+                                .font(.system(size: 10, weight: .semibold)).foregroundStyle(.secondary)
+                        }.padding(13).frame(maxWidth: .infinity, alignment: .leading)
+                            .background(editing == index ? Studio.accent.opacity(0.07) : .white.opacity(0.025), in: RoundedRectangle(cornerRadius: 11))
+                            .overlay(RoundedRectangle(cornerRadius: 11).stroke(editing == index ? Studio.accent.opacity(0.3) : Studio.border))
+                    }.buttonStyle(.plain)
+                        .accessibilityLabel("\(titles[index]): \(actions[index].previewTitle). Upravit akci")
+                        .accessibilityAddTraits(editing == index ? .isSelected : [])
+                }
+                if let editing {
+                    HardwareActionEditor(title: "Upravit · " + titles[editing], macro: $actions[editing])
+                        .id(editing)
+                } else {
+                    Text("Vyberte pohyb, jehož akci chcete změnit.")
+                        .font(.caption).foregroundStyle(.secondary).padding(.top, 8)
+                }
+            }
+        }
+    }
+}
+
 struct HardwareActionEditor: View {
     let title: String
     @Binding var macro: MacroDef
@@ -443,7 +486,7 @@ struct HardwareActionEditor: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 8) {
-                Image(systemName: title == "Doleva" ? "arrow.counterclockwise" : title == "Doprava" ? "arrow.clockwise" : "hand.tap")
+                Image(systemName: title.hasSuffix("Doleva") ? "arrow.counterclockwise" : title.hasSuffix("Doprava") ? "arrow.clockwise" : "hand.tap")
                     .foregroundStyle(Studio.accent)
                 Text(title).font(.system(size: 12, weight: .semibold))
             }

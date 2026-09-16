@@ -123,7 +123,7 @@ private struct DeviceControl: View {
     }
 }
 
-private extension MacroDef {
+extension MacroDef {
     var previewTitle: String {
         switch kind {
         case .keys: return chords.isEmpty ? "Bez akce" : chords.map(\.label).joined(separator: " → ")

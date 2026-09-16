@@ -1,3 +1,14 @@
+# Aktuální změna — přehled akcí encoderu
+
+- Opakované přepínače typu akce u encoderu nahrazeny třemi souhrnnými řádky:
+  Stisk / Doleva / Doprava + skutečně přiřazená akce.
+- Kliknutí na řádek otevře jeden editor; další kliknutí ho zavře. Přepnutí
+  editoru používá nové ID a ukončí nahrávání původní zkratky.
+- Tlačítko s jednou akcí má editor rovnou. Výběr jiného prvku resetuje otevřený řádek.
+- 12 testů a universal build prošly, appka aktualizována bez změny konfigurace/FW.
+
+---
+
 # Aktuální stav — sjednocený vizuální styl aplikace
 
 - StudioStyle poskytuje tmavé povrchy, cyan akcent, vlastní tlačítka, karty,
