@@ -1,3 +1,22 @@
+# Oprava párování před prvním učením — 16. 9. 2026
+
+- Uživatel hlásil viditelné zařízení, které odmítá připojení po flashi rc1.
+  Na Macu nepoužil Zapomenout zařízení.
+- Univerzální FW zachovával obsazený BLE profil a před učením nešlo přepnout.
+  Nově před první konfigurací rezervuje volný profil, pokud aktivní není
+  připojený; volbu ihned persistuje. Staré bondy ani layout nemaže.
+- Průvodce zahájený již spárovaným Macem při prázdném layoutu vybere odpovídající
+  původní profil. Držení prvního encoderu + rotace přepíná všechny profily.
+- Firmware `ef7ec5f`, úspěšné CI **35086604901**, 0.3.0-rc2.
+- UF2 SHA256 `60f1f77993f784475e63fc21aa80edc90bc2fb1a66f4153bd2243cb9898671e3`.
+- Nahráno na místní XIAO-SENSE: 375296 bytů, fsync OK, boot disk zmizel a
+  MacroPad USB HID se znovu zaregistroval. Settings reset nebyl použit.
+- C testy pokrývají bootstrap profilů; 10 Swift testů s novým UF2 prošlo.
+- Dotaz na ověření Bluetooth připojení je odeslaný uživateli; výsledek zatím
+  nepotvrzen. Pokud selže, dál diagnostikovat místo automatického mazání bondů.
+
+---
+
 # Průvodce učením MacroPadu — 16. 9. 2026
 
 - Nová záložka Vlastní MacroPad: první flash přibaleného UF2, učení tlačítek a
