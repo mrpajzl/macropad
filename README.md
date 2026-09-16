@@ -3,7 +3,7 @@
 Tři klávesy a otočný encoder EC11, přestavěné na **Seeed XIAO nRF52840**.
 Firmware ZMK funguje přes USB i Bluetooth; macOS aplikace zapisuje makra bezdrátově a zajišťuje ztišení mikrofonu.
 
-## Výchozí ovládání
+## Původní pevný firmware — výchozí ovládání
 
 Při pohledu s encoderem vpravo:
 
@@ -34,15 +34,15 @@ Vyžaduje macOS 13+ a Xcode Command Line Tools. Aplikace musí běžet pro F18 m
 automatické spouštění lze zapnout v jejím nastavení. USB/Bluetooth klávesy a hlasitost
 fungují samostatně.
 
-### Bezdrátová změna maker
+### Konfigurace univerzálního MacroPadu
 
-Po jednorázovém nahrání firmwaru v0.2 přes USB spáruj MacroPad s Macem.
-V appce vyber **XIAO · Bluetooth → Najít MacroPad → Připojit a načíst**.
-Uprav klávesy a kolečko, stiskni všechny tři klávesy současně a do 60 sekund
-klikni **Zapsat do padu**. Appka ověří uložené hodnoty zpětným čtením.
-Nastavení zůstává v padu po restartu. Podržení kolečka pro správu Bluetooth je pevné.
-Původní CH552 konfigurátor zůstává dostupný pod **CH552 · USB**.
-Podrobnosti: [návod appky](MacroPadApp/README.md).
+Aplikace se k uloženému padu připojuje automaticky. Při prvním použití ho spárujte
+v Bluetooth nastavení Macu. Na hlavní obrazovce vyberte ovladač, upravte akce
+nebo podržení a klikněte **Uložit změny**. Zápis se ověří načtením ze zařízení.
+
+**Nastavení zařízení** obsahuje zapojení a rozmístění, připojené počítače a firmware.
+Nová deska potřebuje jednorázovou instalaci univerzálního obrazu; potom se zapojení
+a akce ukládají přímo do padu bez kompilace. Podrobnosti: [návod appky](MacroPadApp/README.md).
 
 ## Firmware
 
@@ -63,6 +63,18 @@ smazat uložená nastavení; následně znovu nahraj hlavní firmware.
 
 Pro Bluetooth otevři nastavení Bluetooth na Macu a připoj „MacroPad“.
 Při připojeném datovém USB má ZMK standardně přednostně USB výstup.
+
+### Aktualizace z aplikace bez RESETu
+
+Od univerzálního firmwaru 0.3.3 otevřete **Nastavení zařízení → Firmware**,
+připojte datové USB k tomuto Macu a klikněte **Aktualizovat přes USB**.
+Příkaz přijde přes Bluetooth. Po objevení disku XIAO klikněte **Nahrát firmware**;
+aplikace ověří obraz a po návratu zařízení hlášenou verzi. Nastavení a párování
+zůstanou zachované. Ze staršího firmwaru je třeba ještě jednou vstoupit dvojstiskem
+RESETu. Tato volba přenáší firmware přes USB. Od firmwaru 0.3.4 je ve stejné
+části Firmware také **Bezdrátová aktualizace · Bluetooth**, která na kompatibilním XIAO
+přenese firmware bez USB i bez stisku RESETu; podrobnosti jsou v
+[průvodci aplikací](MacroPadApp/README.md#plně-bezdrátový-přenos-034).
 
 ## Úsporný režim
 
@@ -140,3 +152,20 @@ stále uchovává původní klíč. V seznamu zařízení použijte **Obnovit p�
 pouze jeho starý klíč a otevře párování ve stejném slotu. Ostatní počítače a
 konfigurace zůstanou zachované. Firmware ověřuje identitu cíle a nedovolí takto
 zrušit spojení s Macem, z něhož příkaz přichází. Zrušení obnovy starý klíč nevrátí.
+
+### Současné připojení a automatické předání (0.3.6)
+
+Univerzální firmware udržuje až pět Bluetooth spojení. Každý připojený Mac může
+číst a upravovat konfiguraci bez přepnutí cíle kláves. Zápis nebo učení má vždy
+jednoho vlastníka; při odpojení se zámek uvolní, bez heartbeat nejpozději za 15 s.
+Appka před zápisem pod zámkem kontroluje, zda se konfigurace mezitím nezměnila.
+Neuložený návrh na druhém Macu se automaticky nepřepisuje; aktuální konfigurace
+se na nečinných appkách obnovuje přibližně každé 3 s.
+
+Pokud vybraný Bluetooth host vypadne a není funkční USB výstup, po 3 sekundách
+od zjištění výpadku firmware vybere další připojený uložený profil cyklicky podle
+slotů. Kontrola probíhá každou sekundu. Původní Mac po návratu nepřebírá Bluetooth
+výstup zpět; ručně lze kdykoli vybrat **Ovládat**. Funkční USB se zachová a návrat
+USB dál respektuje preferenci transportu v ZMK. Bez dostupné náhrady se čeká;
+párování ani klíče se nemažou. Během párování, učení a aktualizace je automatické
+předání pozastavené. Rozběhnuté makro se nepřenese na nový cíl.

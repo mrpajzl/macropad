@@ -2,6 +2,8 @@ import SwiftUI
 
 struct HostManagerView: View {
     @ObservedObject var pad: LearningPad
+    var embedded = false
+    var onClose: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
     @State private var renaming: SavedHost?
     @State private var name = ""
@@ -19,7 +21,7 @@ struct HostManagerView: View {
                     Text("Vaše zařízení").font(.system(size: 26, weight: .semibold, design: .rounded))
                 }
                 Spacer()
-                Button("Hotovo") { dismiss() }
+                if !embedded { Button("Hotovo") { if let onClose { onClose() } else { dismiss() } } }
             }
             if !pad.ready {
                 Text("MacroPad je odpojený. Po obnovení spojení se seznam načte přímo ze zařízení.").foregroundStyle(.secondary)
@@ -31,7 +33,7 @@ struct HostManagerView: View {
                         .font(.system(size: 26)).foregroundStyle(Studio.accent)
                     VStack(alignment: .leading, spacing: 5) {
                         Text(snapshot.fresh ? "Výstup: \(snapshot.destination)" : "Čekám na aktuální stav…").font(.system(size: 16, weight: .semibold))
-                        Text("Připojení appky a cíl kláves jsou dvě různé věci.").font(.system(size: 12)).foregroundStyle(.secondary)
+                        Text("Konfigurovat můžete z každého připojeného Macu, nezávisle na cíli kláves.").font(.system(size: 12)).foregroundStyle(.secondary)
                     }
                     Spacer()
                 }.padding(18).background(Studio.accent.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
@@ -88,6 +90,10 @@ struct HostManagerView: View {
                             .disabled(pad.power?.mode == .battery || pad.hostBusy || pad.busy || pad.learning || !snapshot.fresh)
                     }
                 }
+                Text(snapshot.supportsMultiHost
+                     ? "Automatické předání je zapnuté. Při nedostupném výstupu se po 3 sekundách vybere další připojený Bluetooth profil v pořadí slotů. Funkční USB má přednost před tímto předáním. Návrat původního Macu nepřepíná Bluetooth cíl zpět."
+                     : "Automatické předání a souběžná připojení vyžadují nový firmware.")
+                    .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Text("Uložený počítač znovu nepárujte — vyberte Ovládat. Názvy se ukládají do MacroPadu a uvidíte je i na druhém Macu. Přepnutí nemaže párování; appka může zůstat připojená.")
                     .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 if snapshot.usbOutput && !snapshot.hosts.contains(where: { $0.selected && $0.connected }) {
@@ -97,7 +103,7 @@ struct HostManagerView: View {
             } else { ProgressView("Načítám uložená zařízení…") }
             if !pad.hostMessage.isEmpty { Text(pad.hostMessage).font(.caption).foregroundStyle(.secondary) }
         }
-        .padding(28).frame(width: 690).background(Studio.background).preferredColorScheme(.dark)
+        .padding(embedded ? 0 : 28).frame(width: embedded ? nil : 690).background(Studio.background).preferredColorScheme(.dark)
         .buttonStyle(StudioButton()).tint(Studio.accent)
         .onAppear { pad.refreshHosts() }
         .alert("Obnovit párování zařízení \(repairingHost?.title ?? "")?", isPresented: $confirmRepair) {

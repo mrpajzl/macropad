@@ -3,13 +3,17 @@ import SwiftUI
 @main
 struct MacroPadApp: App {
     @StateObject private var learningPad = LearningPad()
+    @ObservedObject private var wheel = ActionWheel.shared
     @ObservedObject private var mic = MicController.shared
 
-    init() { MicController.shared.registerHotkey(Chord(mods: 0, code: 0x6d)) }
+    init() { ActionWheel.shared.start(); MicController.shared.registerHotkey(Chord(mods: 0, code: 0x6d)) }
 
     var body: some Scene {
         Window("MacroPad", id: "main") {
             HardwareWorkspace(pad: learningPad)
+                .alert("Kruhové menu", isPresented: Binding(get: { !wheel.error.isEmpty }, set: { if !$0 { wheel.error = "" } })) {
+                    Button("OK") { wheel.error = "" }
+                } message: { Text(wheel.error) }
         }
         .defaultSize(width: 1100, height: 720)
         .windowStyle(.hiddenTitleBar)
@@ -17,6 +21,8 @@ struct MacroPadApp: App {
         MenuBarExtra {
             Button(mic.muted ? "Zapnout mikrofon" : "Vypnout mikrofon") { mic.toggle() }
                 .keyboardShortcut("m", modifiers: [.command, .shift])
+            Button("Náhled přepínání aplikací…") { wheel.show(mode: .applications, control: -1, preview: true) }
+            if !wheel.error.isEmpty { Text(wheel.error) }
             Divider()
             Text(learningPad.ready ? "MacroPad · \(learningPad.project.controls.count) prvků" : "MacroPad je odpojený").foregroundStyle(.secondary)
             OpenMainWindowButton()

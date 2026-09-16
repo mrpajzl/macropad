@@ -10,8 +10,25 @@ struct HardwareControl: Codable, Identifiable, Equatable {
     var x: Int = 0
     var y: Int = 0
     var actions: [MacroDef] = [MacroDef(), MacroDef(), MacroDef()]
+    var holdMode: HoldMode = .disabled
     var title: String { "\(kind == .button ? "Tlačítko" : "Encoder") \(id + 1)" }
     var pins: [Int] { kind == .button ? [pin] : [pin, a, b] }
+}
+
+extension HardwareControl {
+    enum CodingKeys: String, CodingKey { case id, kind, pin, a, b, x, y, actions, holdMode }
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        id = try values.decode(Int.self, forKey: .id)
+        kind = try values.decode(ControlKind.self, forKey: .kind)
+        pin = try values.decode(Int.self, forKey: .pin)
+        a = try values.decodeIfPresent(Int.self, forKey: .a) ?? 255
+        b = try values.decodeIfPresent(Int.self, forKey: .b) ?? 255
+        x = try values.decodeIfPresent(Int.self, forKey: .x) ?? 0
+        y = try values.decodeIfPresent(Int.self, forKey: .y) ?? 0
+        actions = try values.decodeIfPresent([MacroDef].self, forKey: .actions) ?? [MacroDef(), MacroDef(), MacroDef()]
+        holdMode = try values.decodeIfPresent(HoldMode.self, forKey: .holdMode) ?? .disabled
+    }
 }
 
 struct HardwareProject: Codable, Equatable {
@@ -45,7 +62,7 @@ struct HardwareProject: Codable, Equatable {
                 throw BLEProtocol.Failure(message: "Tlačítko nesmí mít piny encoderu.")
             }
             let offset = 8 + control.id * 8
-            bytes.replaceSubrange(offset..<offset+8, with: [control.kind.rawValue, UInt8(control.pin), UInt8(control.a), UInt8(control.b), UInt8(control.x), UInt8(control.y), 0, 0])
+            bytes.replaceSubrange(offset..<offset+8, with: [control.kind.rawValue, UInt8(control.pin), UInt8(control.a), UInt8(control.b), UInt8(control.x), UInt8(control.y), control.holdMode.rawValue, 0])
             for (action, macro) in control.actions.enumerated() {
                 var legacy = PadConfig(); legacy[1] = macro
                 let record = [UInt8](try BLEProtocol.encode(legacy, slot: 1))
@@ -68,8 +85,9 @@ struct HardwareProject: Codable, Equatable {
         for id in 0..<11 {
             let start = 8 + id * 8
             if bytes[start] == 0 { continue }
-            guard let kind = ControlKind(rawValue: bytes[start]), bytes[start+6] == 0, bytes[start+7] == 0 else { throw BLEProtocol.Failure(message: "Neznámý ovladač.") }
+            guard let kind = ControlKind(rawValue: bytes[start]), let holdMode = HoldMode(rawValue: bytes[start+6]), bytes[start+7] == 0 else { throw BLEProtocol.Failure(message: "Neznámý ovladač.") }
             var control = HardwareControl(id: id, kind: kind, pin: Int(bytes[start+1]), a: Int(bytes[start+2]), b: Int(bytes[start+3]), x: Int(bytes[start+4]), y: Int(bytes[start+5]))
+            control.holdMode = holdMode
             for action in 0..<3 {
                 let offset = 96 + (id * 3 + action) * 12
                 var legacy = Data()

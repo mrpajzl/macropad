@@ -1,9 +1,10 @@
 {
-  "sha256": "1c65b1cb0431b047aadeb2d6c91e30fda4cd084d03b481293dba998b4ce9928c",
-  "sourceCommit": "18cca8867eb77531a82425e41f566ba1a23de7a7",
+  "sha256": "37efe7bb9dd0fd857821ebb210606896e28ced887c9ba1b9b10ad1f7476d8e80",
+  "sourceCommit": "9da10b6454c9d75c7b36dbb825d986f358e5a2c7",
   "sourceRepository": "mrpajzl/zmk-config-macropad",
-  "buildRun": 35105806689,
+  "sourceBranch": "codex/multihost-failover",
+  "buildRun": 35135692083,
   "shield": "macropadstudio",
   "board": "seeeduino_xiao_ble",
-  "version": "0.3.1-pair-repair"
+  "version": "0.3.6-multihost"
 }

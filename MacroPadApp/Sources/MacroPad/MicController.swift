@@ -87,7 +87,10 @@ final class MicController: ObservableObject {
         if chord.mods & 0x88 != 0 { mods |= UInt32(cmdKey) }
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         if handlerRef == nil {
-            InstallEventHandler(GetApplicationEventTarget(), { _, _, _ in
+            InstallEventHandler(GetApplicationEventTarget(), { _, event, _ in
+                var key = EventHotKeyID()
+                guard let event, GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &key) == noErr,
+                      key.signature == 0x4d50_4144 else { return OSStatus(eventNotHandledErr) }
                 NSLog("MacroPad: hotkey pressed")
                 DispatchQueue.main.async { MicController.shared.toggle() }
                 return noErr

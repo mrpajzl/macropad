@@ -102,6 +102,29 @@ final class HardwareTests: XCTestCase {
         XCTAssertThrowsError(try FirmwareInstaller.validateUF2(Data()))
         XCTAssertThrowsError(try FirmwareInstaller.validateUF2(Data(repeating: 0, count: 512)))
     }
+    func testFirmwareVersionRequiresKnownProtocolAndPrintableVersion() {
+        XCTAssertEqual(FirmwareInstaller.decodeDeviceVersion(Data([1]) + Data("0.3.3-usb-update".utf8)), "0.3.3-usb-update")
+        for bytes in [Data(), Data([1]), Data([2, 65]), Data([1, 0]), Data([1, 255]), Data(repeating: 65, count: 65)] {
+            XCTAssertNil(FirmwareInstaller.decodeDeviceVersion(bytes))
+        }
+    }
+    func testUF2RejectsWritesOutsideApplicationAndDuplicateAddresses() throws {
+        func block(_ index: UInt32, address: UInt32, flags: UInt32 = 0x2000) -> Data {
+            var bytes = [UInt8](repeating: 0, count: 512)
+            for (offset, value) in [(0, UInt32(0x0a324655)), (4, 0x9e5d5157), (8, flags),
+                                    (12, address), (16, 256), (20, index), (24, 2), (28, 0xada52840), (508, 0x0ab16f30)] {
+                for i in 0..<4 { bytes[offset+i] = UInt8(truncatingIfNeeded: value >> (8*i)) }
+            }
+            return Data(bytes)
+        }
+        let first = block(0, address: 0x27000)
+        try FirmwareInstaller.validateUF2(first + block(1, address: 0x27100))
+        for address: UInt32 in [0, 0x26000, 0xec000, 0xf4000, UInt32.max, 0x27001, 0x27000] {
+            XCTAssertThrowsError(try FirmwareInstaller.validateUF2(first + block(1, address: address)))
+        }
+        XCTAssertThrowsError(try FirmwareInstaller.validateUF2(first + block(1, address: 0x27100, flags: 0x2001)))
+        XCTAssertThrowsError(try FirmwareInstaller.validateUF2(first + block(0, address: 0x27100)))
+    }
     func testBundledFirmwareMatchesManifestAndBoardFamily() throws {
         let folder = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Firmware")
         let data = try Data(contentsOf: folder.appendingPathComponent("macropad-learn.uf2"))

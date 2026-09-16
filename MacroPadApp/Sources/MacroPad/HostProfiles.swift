@@ -20,6 +20,7 @@ struct HostProfiles {
     let failed: Bool
     let canRepair: Bool
     let repairing: Bool
+    var supportsMultiHost: Bool = false
     let capacity: Int
     let used: Int
     let hosts: [SavedHost]
@@ -57,7 +58,7 @@ struct HostProfiles {
         }
         return HostProfiles(active: Int(b[2]), usbOutput: b[4] == 0,
                             pairingSlot: b[5] == 255 ? nil : Int(b[5]), pairingSeconds: Int(b[6]) | Int(b[7]) << 8,
-                            sequence: b[8], pending: b[9] != 0, failed: b[10] != 0, canRepair: b[11] & 1 != 0, repairing: b[11] & 2 != 0, capacity: Int(b[1]), used: used,
+                            sequence: b[8], pending: b[9] != 0, failed: b[10] != 0, canRepair: b[11] & 1 != 0, repairing: b[11] & 2 != 0, supportsMultiHost: b[11] & 4 != 0, capacity: Int(b[1]), used: used,
                             hosts: hosts, date: Date())
     }
     static func repairPacket(_ host: SavedHost) -> Data? {

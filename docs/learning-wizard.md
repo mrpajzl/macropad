@@ -5,11 +5,12 @@ Appka má jedinou hlavní obrazovku pro MacroPad s univerzálním firmwarem.
 Hlavní obrazovka obsahuje kompaktní náhled zařízení a vedle něj editor zkratek
 vybraného prvku. Náhled zachovává polohy prvků, zobrazuje klávesy s jejich akcemi
 a kulaté encodery. Prázdné okraje mřížky se nezobrazují.
-Běžné změny akcí uložíte tlačítkem **Uložit zkratky do MacroPadu**.
-Průvodce je v popupu **Nastavení MacroPadu**: připojení a firmware, zapojení
-a rozložení prvků. **Uložit a přejít na zkratky** po ověřeném zápisu popup
-zavře a vrátí vás k akcím vybraného prvku. Zavření popupu bez uložení ponechá
-návrh v appce a ukončí poznávání, takže běžná makra zase fungují.
+Změny akcí uložíte tlačítkem **Uložit změny**.
+**Nastavení zařízení** otevře jediné okno s částmi **Zapojení**, **Připojení**
+a **Firmware**. V Zapojení přidáte prvky a upravíte jejich rozmístění. Akce upravíte na hlavní obrazovce.
+Uložení ponechá stejnou část otevřenou a ověří zápis načtením ze zařízení.
+Zavření bez uložení ponechá návrh v appce a ukončí poznávání, takže běžná
+makra zase fungují. **Zahodit změny** obnoví konfiguraci načtenou z MacroPadu.
 
 ## První zapojení
 
@@ -21,18 +22,20 @@ encodery bez tlačítka. Dekódování encoderu počítá se čtyřmi změnami n
 stejně jako u původního prototypu.
 
 1. Připojte desku datovým USB a dvakrát stiskněte RESET.
-2. V průvodci vyberte disk XIAO a **Nahrát základní firmware**. Appka obsahuje
+2. V **Firmware** vyberte disk XIAO
+   a **Nahrát firmware**. Appka obsahuje
    ověřený univerzální obraz; není potřeba GitHub, kompilátor ani internet.
-3. Deska se restartuje. Spárujte MacroPad v Bluetooth macOS. Průvodce nabízí
+3. Deska se restartuje. Spárujte MacroPad v Bluetooth macOS. Část **Připojení** nabízí
    vyhledání/připojení a automatické načtení. Při více padech zvolte správný.
-4. Zapněte poznávání, přidejte tlačítko nebo encoder. Po stisku a uvolnění
+4. V **Zapojení** klikněte na **Přidat ovladač** a vyberte tlačítko nebo encoder. Po stisku a uvolnění
    klikněte na **Potvrdit stisk**. U encoderu následně otočte alespoň dva kroky
    doprava a potvrďte, poté doleva a potvrďte. Appka odvodí piny i směr.
    Pokud chybí vzorek nebo se hýbe více ovladači, pokus odmítne a lze ho opakovat.
-5. Přidejte další ovladače. V gridu přetahujte prvky; obsazené pozice se vymění.
-   Lze použít i volby řádku/sloupce. Každý encoder má stisk/doleva/doprava.
-   Tlačítka jsou zpočátku bez akce; přiřaďte jim zkratky, média, myš či mikrofon.
-6. **Uložit a přejít na zkratky** nahraje celou konfiguraci, atomicky ji
+5. Přidejte další ovladače. V **Upravit rozmístění ovladačů** přetahujte prvky;
+   obsazené pozice se vymění. Volby řádku/sloupce jsou v **Zapojení a pozice**. Každý encoder má stisk/doleva/doprava.
+   Tlačítka jsou zpočátku bez akce; zkratky, média, myš či mikrofon jim přiřaďte
+   po zavření nastavení na hlavní obrazovce.
+6. **Uložit změny** nahraje celou konfiguraci, atomicky ji
    uloží do paměti desky a znovu načte pro ověření. Univerzální firmware už
    běží; podle rozložení se nekompiluje ani znovu neflashuje. Uložení si samo
    vyžádá režim pro zápis; není nutné předem zapínat poznávání.

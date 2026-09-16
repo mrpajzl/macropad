@@ -6,6 +6,7 @@ struct DevicePreview: View {
     let activity: HardwareActivity
     let connected: Bool
     @Binding var selected: Int?
+    var showsActions = true
 
     private var left: Int { controls.map(\.x).min() ?? 0 }
     private var top: Int { controls.map(\.y).min() ?? 0 }
@@ -55,7 +56,7 @@ struct DevicePreview: View {
                     let active = activity.isActive(control.id, at: time)
                     let direction = activity.direction(control.id, at: time)
                     Button { selected = control.id } label: {
-                        DeviceControl(control: control, selected: selected == control.id, active: active, direction: direction)
+                        DeviceControl(control: control, selected: selected == control.id, active: active, direction: direction, showsActions: showsActions)
                             .frame(width: 92, height: 98)
                             .scaleEffect(pitch / 106)
                     }
@@ -64,7 +65,7 @@ struct DevicePreview: View {
                     .offset(x: CGFloat(control.x - left) * pitch, y: CGFloat(control.y - top) * pitch)
                     .accessibilityLabel(control.title)
                     .accessibilityValue(active ? (direction == 0 ? "Stisknuto" : direction > 0 ? "Doprava" : "Doleva") : "V klidu")
-                    .help("\(control.title) · \(control.actions[0].previewTitle)")
+                    .help(showsActions ? "\(control.title) · \(control.actions[0].previewTitle)" : control.title)
                 }
             }.frame(width: CGFloat(columns) * pitch - 14, height: CGFloat(rows) * pitch - 8)
         }
@@ -84,6 +85,7 @@ private struct DeviceControl: View {
     let selected: Bool
     let active: Bool
     let direction: Int
+    let showsActions: Bool
     private var accent: Color { active ? .green : .cyan }
     var body: some View {
         VStack(spacing: 8) {
@@ -96,7 +98,7 @@ private struct DeviceControl: View {
                     Circle().stroke(.black.opacity(0.25), lineWidth: 1).frame(width: 59, height: 59)
                     Capsule().fill(selected || active ? accent : .white.opacity(0.75)).frame(width: 3, height: 10).offset(y: -23)
                         .rotationEffect(.degrees(Double(direction) * 25))
-                    Image(systemName: direction > 0 ? "arrow.clockwise" : direction < 0 ? "arrow.counterclockwise" : control.actions[0].previewSymbol)
+                    Image(systemName: direction > 0 ? "arrow.clockwise" : direction < 0 ? "arrow.counterclockwise" : showsActions ? control.actions[0].previewSymbol : "dial.low")
                         .font(.system(size: 19, weight: .medium)).foregroundStyle(active ? accent : .white.opacity(0.9))
                 } else {
                     RoundedRectangle(cornerRadius: 13).fill(.black.opacity(0.7)).frame(width: 78, height: 72).offset(y: 4)
@@ -105,12 +107,14 @@ private struct DeviceControl: View {
                         .frame(width: 78, height: 72)
                         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(selected || active ? accent : .white.opacity(0.14), lineWidth: selected || active ? 2 : 1))
                     VStack(spacing: 6) {
-                        if control.actions[0].kind == .keys, !control.actions[0].chords.isEmpty {
+                        if !showsActions {
+                            Image(systemName: "square").font(.system(size: 20))
+                        } else if control.actions[0].kind == .keys, !control.actions[0].chords.isEmpty {
                             Text(control.actions[0].chords[0].label).font(.system(size: 19, weight: .medium)).lineLimit(1).minimumScaleFactor(0.5)
                         } else {
                             Image(systemName: control.actions[0].previewSymbol).font(.system(size: 20, weight: .medium))
                         }
-                        Text(control.actions[0].previewTitle).font(.system(size: 9, weight: .medium)).lineLimit(1).minimumScaleFactor(0.6)
+                        if showsActions { Text(control.actions[0].previewTitle).font(.system(size: 9, weight: .medium)).lineLimit(1).minimumScaleFactor(0.6) }
                     }.foregroundStyle(active ? accent : .white.opacity(0.92)).padding(8).frame(width: 78)
                 }
             }

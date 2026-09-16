@@ -40,6 +40,15 @@ final class HostProfilesTests: XCTestCase {
         XCTAssertEqual(HostProfiles.renamePacket(slot: 1, name: " MacBook doma "), Data([2,1]) + Data("MacBook doma".utf8))
         XCTAssertEqual(HostProfiles.renamePacket(slot: 1, name: String(repeating: "ě", count: 9))?.count, 20)
     }
+    func testMultiHostCapabilityIsBackwardCompatible() throws {
+        var bytes = snapshot()
+        XCTAssertFalse(try XCTUnwrap(HostProfiles.decode(Data(bytes))).supportsMultiHost)
+        bytes[11] = 5
+        let state = try XCTUnwrap(HostProfiles.decode(Data(bytes)))
+        XCTAssertTrue(state.supportsMultiHost)
+        XCTAssertTrue(state.canRepair)
+        XCTAssertFalse(state.repairing)
+    }
     func testRepairRequiresAnotherHostAndIncludesExpectedIdentity() throws {
         var b = snapshot(); b[11] = 3
         let profiles = try XCTUnwrap(HostProfiles.decode(Data(b)))

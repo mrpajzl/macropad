@@ -3,13 +3,24 @@ import UniformTypeIdentifiers
 
 struct HardwareWorkspace: View {
     @ObservedObject var pad: LearningPad
+    @Environment(\.openWindow) private var openWindow
+    @StateObject private var ota = OTAPad()
+    @State private var otaSoftDevice: UInt16?
+    @State private var otaTarget: UUID?
+    @State private var showOTAInstall = false
+    @State private var beforeFirmwareConfig: Data?
     @State private var draft = HardwareProject()
     @State private var activity = HardwareActivity()
     @State private var dirty = false
-    @State private var page = 0
+    @State private var draftBase: Data?
+    private enum SettingsSection: String, CaseIterable {
+        case controls = "Zapojení", connection = "Připojení", firmware = "Firmware"
+    }
+    @State private var section: SettingsSection = .controls
+    @State private var addingControl = false
+    @State private var editingLayout = false
     @State private var showSetup = false
     @State private var showPower = false
-    @State private var showHosts = false
     @State private var selected: Int?
     @State private var kind: ControlKind?
     @State private var captureStep = 0
@@ -22,8 +33,17 @@ struct HardwareWorkspace: View {
     @State private var flashing = false
     @State private var bootVolumes: [URL] = []
     @State private var chosenVolume: URL?
+    private enum FirmwareMethod { case usb, bluetooth }
+    @State private var usbConnected = false
+    @State private var firmwareMethod: FirmwareMethod?
+    private var recommendedFirmwareMethod: FirmwareMethod { usbConnected || !bootVolumes.isEmpty ? .usb : .bluetooth }
+    private var selectedFirmwareMethod: FirmwareMethod { firmwareMethod ?? recommendedFirmwareMethod }
     @State private var showInstall = false
+    @State private var expectedFirmware: String?
+    @State private var firmwareDeadline: Date?
+    @State private var firmwareDevice: String?
     @State private var showDiscard = false
+    @State private var showSettingsDiscard = false
     @State private var saving = false
     @State private var lastSampleAt: Date?
     @State private var removeID: Int?
@@ -47,15 +67,15 @@ struct HardwareWorkspace: View {
                     }
                 }
                 .popover(isPresented: $showPower) { PowerDetails(pad: pad) }
-                Button { showHosts = true } label: { Label("Zařízení", systemImage: "laptopcomputer") }
-                StudioBadge(title: pad.ready ? "Appka připojena" : "Odpojeno", color: pad.ready ? .green : .gray)
+                StudioBadge(title: pad.ready ? "Připojeno" : !bootVolumes.isEmpty ? "Instalační režim" : pad.busy ? "Připojuji…" : "Odpojeno", color: pad.ready ? .green : .gray)
                 Button { openSetup() } label: { Label("Nastavení zařízení", systemImage: "slider.horizontal.3") }
-                    .disabled(pad.busy || pad.hostBusy)
+                    .disabled((pad.busy && pad.ready) || pad.hostBusy)
             }.padding(.bottom, 14)
             Rectangle().fill(Studio.border).frame(height: 1)
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    if draft.controls.isEmpty {
+                    if !pad.ready { connectionHelp }
+                    if draft.controls.isEmpty && pad.ready {
                         VStack(spacing: 16) {
                             Image(systemName: "keyboard").font(.system(size: 52, weight: .ultraLight)).foregroundStyle(Studio.accent)
                                 .frame(width: 140, height: 110).background(Studio.surface, in: RoundedRectangle(cornerRadius: 24))
@@ -64,7 +84,7 @@ struct HardwareWorkspace: View {
                                 .foregroundStyle(.secondary).multilineTextAlignment(.center)
                             Button("Otevřít nastavení MacroPadu") { openSetup() }.buttonStyle(StudioButton(prominent: true))
                         }.frame(maxWidth: .infinity).padding(40)
-                    } else { layout }
+                    } else if !draft.controls.isEmpty { controlLayout(editHardware: false) }
                     if !detail.isEmpty { Text(detail).foregroundStyle(.secondary).textSelection(.enabled) }
                 }.padding(2)
             }
@@ -79,7 +99,7 @@ struct HardwareWorkspace: View {
                     Button("Zahodit změny", role: .destructive) { showDiscard = true }
                 }
                 Spacer()
-                Button(pad.busy ? "Ukládám…" : "Uložit změny") { saveDraft() }
+                Button(saving ? "Ukládám…" : "Uložit změny") { saveDraft() }
                     .buttonStyle(StudioButton(prominent: true))
                     .disabled(!pad.ready || pad.busy || pad.hostBusy || draft.controls.isEmpty || !dirty)
             }
@@ -88,13 +108,32 @@ struct HardwareWorkspace: View {
         .background(LinearGradient(colors: [Color(red: 0.09, green: 0.105, blue: 0.12), Studio.background], startPoint: .topLeading, endPoint: .bottomTrailing))
         .preferredColorScheme(.dark).tint(Studio.accent)
         .buttonStyle(StudioButton()).groupBoxStyle(StudioGroupBox())
-        .disabled(flashing)
-        .sheet(isPresented: $showHosts) { HostManagerView(pad: pad) }
+        .disabled(flashing || ota.transferring)
         .sheet(isPresented: $showSetup, onDismiss: {
-            kind = nil
+            kind = nil; addingControl = false
             pad.endLearning()
         }) { setupSheet }
         .onAppear {
+            ActionWheel.shared.openSettings = {
+                openWindow(id: "main")
+                NSApp.activate(ignoringOtherApps: true)
+                openSetup()
+            }
+            // The BLE owner survives closing the window; restore its current snapshot.
+            if pad.ready && !dirty {
+                draft = pad.project; draftBase = try? pad.project.encode()
+                if !draft.controls.contains(where: { $0.id == selected }) { selected = draft.controls.first?.id }
+            }
+            bootVolumes = FirmwareInstaller.volumes()
+            usbConnected = FirmwareConnection.hasUSBDevice()
+            chosenVolume = bootVolumes.count == 1 ? bootVolumes.first : nil
+            pad.onOTABootloader = { if let otaSoftDevice { ota.search(softDevice: otaSoftDevice) } }
+            ota.onCompleted = {
+                expectedFirmware = FirmwareInstaller.bundledVersion
+                firmwareDeadline = Date().addingTimeInterval(120)
+                detail = "Přenos přes Bluetooth dokončen. Čekám na ověření verze a konfigurace."
+                pad.start()
+            }
             pad.onSample = { mask, gap in
                 latest = mask
                 activity.update(mask, controls: draft.controls, gap: gap, at: Date().timeIntervalSinceReferenceDate)
@@ -110,39 +149,47 @@ struct HardwareWorkspace: View {
                 }
                 if saving || !dirty {
                     let finished = saving
-                    draft = project; dirty = false; saving = false
-                    page = project.controls.isEmpty ? 1 : 2
+                    draft = project; draftBase = try? project.encode(); dirty = false; saving = false
                     if !project.controls.contains(where: { $0.id == selected }) { selected = project.controls.first?.id }
-                    if finished { showSetup = false; detail = "Změny jsou uložené v MacroPadu." }
+                    if finished { detail = "Změny jsou uložené v MacroPadu." }
                 } else { detail = "Rozpracované změny zůstaly v aplikaci. Zařízení je znovu připojené; pro pokračování zapněte úpravy." }
             }
             pad.start()
         }
-        .onDisappear { pad.disconnect() }
+        // Keep the BLE connection alive for the device wheel while the window is closed.
+        .onChange(of: pad.firmwareVersion) { _ in verifyFirmware() }
         .onChange(of: pad.ready) { ready in
+            if ready { verifyFirmware() }
             if !ready { activity = HardwareActivity(); kind = nil; latest = nil; lastSampleAt = nil; saving = false }
         }
         .onReceive(timer) { _ in
+            if let firmwareDeadline, Date() > firmwareDeadline {
+                self.firmwareDeadline = nil
+                detail = "Firmware byl přenesen, návrat zařízení zatím není ověřený. Zkontrolujte spojení; u staršího bootloaderu může být potřeba jeden RESET. Po připojení ověření automaticky pokračuje."
+            }
             if kind != nil, let lastSampleAt, Date().timeIntervalSince(lastSampleAt) > 2 {
                 lost = true; detail = "Měření bylo přerušeno. Po obnovení spojení pokus zopakujte."
             }
-            if showSetup && page == 0 {
-                bootVolumes = FirmwareInstaller.volumes()
-                if chosenVolume == nil || !bootVolumes.contains(chosenVolume!) { chosenVolume = bootVolumes.first }
+            let previousVolumes = bootVolumes
+            bootVolumes = FirmwareInstaller.volumes()
+            usbConnected = FirmwareConnection.hasUSBDevice()
+            if chosenVolume == nil || !bootVolumes.contains(chosenVolume!) { chosenVolume = bootVolumes.count == 1 ? bootVolumes.first : nil }
+            if !previousVolumes.isEmpty && bootVolumes.isEmpty && !pad.ready && !flashing && !ota.transferring {
+                pad.start()
             }
         }
         .alert("Zahodit rozpracované změny?", isPresented: $showDiscard) {
-            Button("Zahodit", role: .destructive) { draft = pad.project; dirty = false; kind = nil; pad.endLearning() }
+            Button("Zahodit", role: .destructive) { draft = pad.project; draftBase = try? pad.project.encode(); dirty = false; kind = nil; pad.endLearning() }
             Button("Pokračovat v úpravách", role: .cancel) {}
         } message: { Text("Konfigurace uložená v MacroPadu se nezmění.") }
 
     }
     private func openSetup() {
-        page = pad.ready ? (draft.controls.isEmpty ? 1 : 2) : 0
+        if !pad.ready && draft.controls.isEmpty { section = .connection }
         detail = ""; showSetup = true
     }
     private func saveDraft() {
-        saving = true; kind = nil; pad.save(draft)
+        kind = nil; pad.save(draft, basedOn: draftBase); saving = pad.busy
     }
     private var setupSheet: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -152,46 +199,64 @@ struct HardwareWorkspace: View {
                     Text(pad.message).font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button("Zavřít") { showSetup = false }.disabled(pad.busy || flashing)
+                Button("Zavřít") { showSetup = false }.disabled(pad.busy || flashing || ota.transferring)
             }
-            HStack {
-                step("Připojení a firmware", number: 0)
-                step("Zapojení prvků", number: 1)
-                step("Rozložení", number: 2)
+            Picker("Nastavení", selection: $section) {
+                ForEach(SettingsSection.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }.pickerStyle(.segmented).disabled(kind != nil || pad.busy || pad.hostBusy)
+            .onChange(of: section) { destination in
+                if destination != .controls { addingControl = false; pad.endLearning() }
             }
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    if page == 0 { installation }
-                    else if page == 1 { discovery }
-                    else { layout }
+                    switch section {
+                    case .controls: controlsSettings
+                    case .connection: connectionSettings
+                    case .firmware: installation
+                    }
                     if !detail.isEmpty { Text(detail).foregroundStyle(.secondary).textSelection(.enabled) }
                 }.padding(2)
             }
             Divider()
             HStack {
-                Text(pad.learning ? "Poznávání je zapnuté · makra jsou dočasně vypnutá" : "Změny se uloží až potvrzením.")
+                Text(pad.learning ? "Poznávání zapojení · makra jsou pozastavená" : dirty ? "Máte neuložené změny" : "Všechny změny jsou uložené")
                     .font(.caption).foregroundStyle(.secondary)
+                if dirty { Button("Zahodit změny", role: .destructive) { showSettingsDiscard = true } }
                 Spacer()
-                if page == 1 {
-                    Button("Pokračovat na rozložení") { kind = nil; page = 2 }.disabled(kind != nil || draft.controls.isEmpty || pad.busy)
-                }
-                if page == 2 {
-                    Button(pad.busy ? "Ukládám…" : "Uložit a přejít na zkratky") { saveDraft() }
-                        .buttonStyle(StudioButton(prominent: true))
-                        .disabled(!pad.ready || pad.busy || pad.hostBusy || draft.controls.isEmpty)
-                }
+                Button(saving ? "Ukládám…" : "Uložit změny") { addingControl = false; saveDraft() }
+                    .buttonStyle(StudioButton(prominent: true))
+                    .disabled(!pad.ready || pad.busy || pad.hostBusy || kind != nil || !dirty || draft.controls.isEmpty)
             }
         }
-        .padding(28).frame(width: 860, height: 720)
+        .padding(28).frame(width: 1000, height: 760)
         .background(Studio.background).preferredColorScheme(.dark).tint(Studio.accent)
         .buttonStyle(StudioButton()).groupBoxStyle(StudioGroupBox())
-        .interactiveDismissDisabled(pad.busy || flashing)
-        .alert("Nahrát univerzální firmware?", isPresented: $showInstall) {
+        .disabled(flashing || ota.transferring)
+        .interactiveDismissDisabled(pad.busy || flashing || ota.transferring)
+        .alert("Zahodit rozpracované změny?", isPresented: $showSettingsDiscard) {
+            Button("Zahodit", role: .destructive) {
+                draft = pad.project; draftBase = try? pad.project.encode(); dirty = false
+                kind = nil; addingControl = false; pad.endLearning()
+                if !draft.controls.contains(where: { $0.id == selected }) { selected = draft.controls.first?.id }
+            }
+            Button("Pokračovat v úpravách", role: .cancel) {}
+        } message: { Text("Vrátí nastavení uložené v MacroPadu.") }
+        .alert("Nahrát firmware přes Bluetooth?", isPresented: $showOTAInstall) {
+            Button("Nahrát přes Bluetooth") {
+                if let target = ota.devices.first(where: { $0.identifier == otaTarget }) {
+                    pad.disconnect(); ota.install(on: target)
+                }
+            }
+            Button("Zrušit", role: .cancel) {}
+        } message: {
+            Text("Nahraje verzi \(FirmwareInstaller.bundledVersion) na vybraný XIAO. Nechte pad zapnutý a poblíž Macu. Při přerušení může být nutné obnovit firmware přes USB. Nastavení se nepřepisuje.")
+        }
+        .alert("Aktualizovat firmware?", isPresented: $showInstall) {
             Button("Nahrát firmware") { install() }
             Button("Zrušit", role: .cancel) {}
         } message: {
-            Text("Nahradí firmware na vybraném XIAO. Párování zůstane zachované. Původní pevné rozložení bude nahrazeno průvodcem pro naučení zapojení.")
+            Text("Na vybrané XIAO se nahraje verze \(FirmwareInstaller.bundledVersion). Uložené rozložení univerzálního firmwaru, makra a párování zůstanou zachované. Během nahrávání neodpojujte USB kabel. Při přechodu z původního pevného firmwaru bude potřeba naučit zapojení.")
         }
         .alert("Odstranit ovladač i jeho akce?", isPresented: Binding(get: { removeID != nil }, set: { if !$0 { removeID = nil } })) {
             Button("Odstranit", role: .destructive) {
@@ -200,49 +265,175 @@ struct HardwareWorkspace: View {
             Button("Zrušit", role: .cancel) { removeID = nil }
         }
     }
-    private func step(_ title: String, number: Int) -> some View {
-        Button { page = number } label: {
-            HStack(spacing: 9) {
-                Text(String(format: "%02d", number + 1)).font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(page == number ? Studio.accent : Color.secondary)
-                Text(title).font(.system(size: 12, weight: .medium))
-            }.frame(maxWidth: .infinity).padding(.vertical, 13)
-                .background(page == number ? Studio.surface : .clear, in: RoundedRectangle(cornerRadius: 11))
-                .overlay(RoundedRectangle(cornerRadius: 11).stroke(page == number ? Studio.accent.opacity(0.3) : Studio.border))
-        }.buttonStyle(.plain)
-            .disabled(number > 0 && !pad.ready || pad.busy || kind != nil)
+    private var controlsSettings: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Tlačítka a kolečka").font(.headline)
+                    Text("Přidejte ovladače a upravte jejich zapojení a rozmístění.").foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button(addingControl ? "Dokončit přidávání" : "Přidat ovladač") {
+                    addingControl.toggle()
+                    if addingControl { pad.beginLearning() }
+                    else { kind = nil; pad.endLearning() }
+                }.disabled(!pad.ready || pad.busy || pad.hostBusy)
+            }
+            if addingControl { discovery }
+            if !draft.controls.isEmpty {
+                controlLayout(editHardware: true)
+                DisclosureGroup("Upravit rozmístění ovladačů", isExpanded: $editingLayout) {
+                    Text("Přetáhněte ovladač do jiné buňky. Obsazené pozice se vymění.")
+                        .font(.caption).foregroundStyle(.secondary).padding(.top, 8)
+                    activityGrid
+                }
+            } else if !addingControl {
+                Text("Začněte tlačítkem Přidat ovladač. Aplikace vás provede rozpoznáním zapojení.")
+                    .foregroundStyle(.secondary).padding(.vertical, 24)
+            }
+        }
+    }
+    private var connectionHelp: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 12) {
+                if !bootVolumes.isEmpty {
+                    Label("MacroPad je v instalačním režimu", systemImage: "cable.connector").font(.headline)
+                    Text("Mac vidí disk XIAO. V tomto režimu nefungují klávesy ani Bluetooth. Pokud právě nenahráváte firmware, stiskněte RESET jednou. Pak se aplikace připojí automaticky.")
+                    Button("Otevřít firmware") { section = .firmware; showSetup = true }
+                } else {
+                    Label(pad.busy ? "Připojuji MacroPad…" : "Připojení MacroPadu", systemImage: "antenna.radiowaves.left.and.right").font(.headline)
+                    Text(pad.message)
+                    if pad.bluetoothState == .poweredOn {
+                        Text("Zapněte pad poblíž tohoto Macu. Pokud ho používá jiný počítač, dočasně na něm vypněte Bluetooth. Při prvním použití spárujte MacroPad v Bluetooth nastavení Macu.")
+                        ForEach(pad.devices, id: \.identifier) { device in
+                            HStack {
+                                Text(device.name ?? "MacroPad")
+                                Spacer()
+                                Button("Připojit") { pad.connect(device) }.disabled(pad.busy || dirty)
+                            }
+                        }
+                        if dirty { Text("Rozpracované změny zůstávají zachované. Pro výběr jiného zařízení je nejdřív zahoďte.").font(.caption) }
+                        Button("Zkusit připojení znovu") { pad.start() }.disabled(pad.busy)
+                    }
+                    Text("Nastavení se přenáší přes Bluetooth i při zapojeném USB. Kabel slouží pro klávesy, napájení a nahrání firmwaru.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
+        }
+    }
+    private var connectionSettings: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            if !pad.ready { connectionHelp }
+            else {
+                HostManagerView(pad: pad, embedded: true)
+                DisclosureGroup("Baterie a stav zařízení") { PowerDetails(pad: pad) }
+            }
+        }
     }
     private var installation: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Začněte deskou XIAO nRF52840").font(.headline)
-            Text("Zapojte tlačítka a encoder přímo mezi D0–D10 a společnou GND. Encoder potřebuje dva piny pro otáčení a jeden pro stisk. Matice kláves a expandéry zatím podporované nejsou.")
-            GroupBox("První nahrání firmwaru") {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("1. Připojte XIAO datovým USB kabelem.\n2. Dvakrát rychle stiskněte malé tlačítko RESET na desce.\n3. Jakmile se objeví disk XIAO, nahrajte přibalený firmware.")
-                    if !bootVolumes.isEmpty {
-                        Picker("Deska", selection: $chosenVolume) {
-                            ForEach(bootVolumes, id: \.self) { Text($0.lastPathComponent).tag(Optional($0)) }
-                        }
-                    } else { Text("Čekám na disk XIAO…").foregroundStyle(.secondary) }
-                    Button("Nahrát základní firmware") { showInstall = true }.disabled(chosenVolume == nil || flashing)
-                    Text("Firmware je univerzální. Na konci průvodce do něj jedním kliknutím nahrajete zapojení, grid a akce; další kompilace není potřeba.").font(.caption).foregroundStyle(.secondary)
-                }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
+            HStack {
+                Text(pad.firmwareVersion.map { "V zařízení: \($0)" } ?? "Zařízení není připojené")
+                Spacer()
+                Text("Dostupná verze: \(FirmwareInstaller.bundledVersion)").foregroundStyle(.secondary)
             }
-            GroupBox("Připojit a automaticky načíst zařízení") {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Pokud už je firmware nahraný, tento krok stačí. Při prvním připojení spárujte MacroPad v nastavení Bluetooth macOS. Konfigurace se načte přímo z něj i na novém počítači.")
-                    Button("Hledat MacroPad") { pad.start() }.disabled(pad.busy || pad.hostBusy)
-                    ForEach(pad.devices, id: \.identifier) { device in
-                        HStack {
-                            Text(device.name ?? "MacroPad")
-                            Text(String(device.identifier.uuidString.prefix(8))).font(.caption.monospaced()).foregroundStyle(.secondary)
-                            Spacer()
-                            Button("Připojit a načíst") { pad.connect(device) }.disabled(pad.busy || dirty)
-                        }
+            if dirty { Text("Před aktualizací uložte nebo zahoďte změny tlačítkem dole.").foregroundStyle(Studio.accent) }
+            GroupBox("Aktualizace firmwaru") {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(selectedFirmwareMethod == .usb ? "Přes USB kabel" : "Přes Bluetooth").font(.headline)
+                    if firmwareMethod == nil {
+                        Text(recommendedFirmwareMethod == .usb
+                             ? "MacroPad je připojený přes USB. Doporučujeme aktualizaci kabelem."
+                             : "USB připojení k tomuto Macu nebylo nalezeno. Aktualizujte bezdrátově.")
+                            .foregroundStyle(.secondary)
                     }
+                    if selectedFirmwareMethod == .usb { usbInstallation }
+                    else { bluetoothInstallation }
+                    Divider()
+                    Button(selectedFirmwareMethod == .usb ? "Použít raději Bluetooth" : "Použít raději USB kabel") {
+                        firmwareMethod = selectedFirmwareMethod == .usb ? .bluetooth : .usb
+                    }
+                    .disabled(pad.busy || flashing || ota.searching || ota.transferring || firmwareDeadline != nil)
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
             }
         }
+    }
+    private var bluetoothInstallation: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Aktualizujte bez kabelu. Nechte pad zapnutý poblíž Macu; po dokončení ověříme firmware i nastavení.")
+            Button("Aktualizovat přes Bluetooth") {
+                guard let sd = pad.otaSoftDevice else { return }
+                do {
+                    _ = try OTAFirmware.image(uf2: FirmwareInstaller.validatedImage(), softDevice: sd)
+                    beforeFirmwareConfig = try pad.project.encode()
+                    firmwareMethod = .bluetooth
+                    firmwareDevice = pad.wheelDeviceKey; otaSoftDevice = sd
+                    pad.enterFirmwareBootloader(ota: true)
+                } catch { detail = error.localizedDescription }
+            }.buttonStyle(StudioButton(prominent: true)).disabled(!pad.ready || pad.otaSoftDevice == nil || pad.busy || pad.hostBusy || pad.learning || dirty || ota.searching)
+            if pad.ready && pad.otaSoftDevice == nil {
+                Text("Tento firmware zatím bezdrátové nahrávání nenabízí. Připojte pad datovým kabelem a zvolte aktualizaci přes USB.").font(.caption).foregroundStyle(.secondary)
+            }
+            if let sd = otaSoftDevice {
+                Button("Znovu hledat Bluetooth bootloader") { ota.search(softDevice: sd) }.disabled(pad.busy || ota.searching)
+            }
+            if ota.searching || ota.transferring {
+                ProgressView(value: Double(ota.progress), total: 100)
+                if ota.transferring {
+                    Text("\(ota.progress) % · Přenos se starším bootloaderem může trvat přibližně 11 minut. Nechte pad zapnutý a Mac vzhůru.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if !ota.message.isEmpty { Text(ota.message).font(.callout).foregroundStyle(.secondary) }
+            ForEach(ota.devices, id: \.identifier) { device in
+                HStack {
+                    Text(device.name ?? "Bluetooth DFU")
+                    Text(String(device.identifier.uuidString.prefix(8))).font(.caption.monospaced())
+                    Spacer()
+                    Button("Nahrát na tento XIAO") { otaTarget = device.identifier; showOTAInstall = true }
+                        .disabled(dirty || pad.busy || pad.hostBusy || pad.learning)
+                }
+            }
+            if !ota.devices.isEmpty {
+                Text("Vyberte svůj pad. Po přenosu ověříme firmware i uložené nastavení.").font(.caption).foregroundStyle(.secondary)
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(8)
+    }
+    private var usbInstallation: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if !bootVolumes.isEmpty {
+                if bootVolumes.count > 1 {
+                    Picker("Deska", selection: $chosenVolume) {
+                        Text("Vyberte XIAO").tag(Optional<URL>.none)
+                        ForEach(bootVolumes, id: \.self) { Text($0.lastPathComponent).tag(Optional($0)) }
+                    }
+                }
+                Text("MacroPad je připravený k nahrání. Během aktualizace neodpojujte kabel.")
+                Button(flashing ? "Nahrávám…" : "Nahrát firmware přes USB") { firmwareMethod = .usb; showInstall = true }
+                    .buttonStyle(StudioButton(prominent: true))
+                    .disabled(chosenVolume == nil || flashing || dirty || pad.busy || pad.hostBusy || pad.learning)
+            } else {
+                Text(usbConnected
+                     ? "Připravíme pad k nahrání přes Bluetooth. Potom potvrdíte nahrání přes USB."
+                     : "Připojte MacroPad datovým USB kabelem k tomuto Macu.")
+                if pad.supportsFirmwareUpdate {
+                    Button("Aktualizovat přes USB") {
+                        do {
+                            _ = try FirmwareInstaller.validatedImage()
+                            beforeFirmwareConfig = try pad.project.encode()
+                            firmwareDevice = pad.wheelDeviceKey; firmwareMethod = .usb
+                            pad.enterFirmwareBootloader()
+                        } catch { detail = error.localizedDescription }
+                    }.buttonStyle(StudioButton(prominent: true))
+                        .disabled(!usbConnected || !pad.ready || pad.busy || pad.hostBusy || pad.learning || dirty)
+                } else if usbConnected {
+                    Text("Pro přípravu bez RESETu připojte pad také přes Bluetooth. Při první instalaci nebo obnově dvakrát rychle stiskněte RESET; zde pak nabídneme nahrání.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+            }
+            if pad.learning { Text("Nejdřív dokončete přidávání ovladače v části Zapojení.").font(.caption) }
+            if !pad.firmwareMessage.isEmpty { Text(pad.firmwareMessage).font(.callout).foregroundStyle(.secondary) }
+        }.frame(maxWidth: .infinity, alignment: .leading)
     }
     private var discovery: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -274,42 +465,17 @@ struct HardwareWorkspace: View {
                     }.frame(maxWidth: .infinity, alignment: .leading).padding(12)
                 }
             }
-            ForEach(draft.controls) { control in
-                HStack {
-                    Image(systemName: control.kind == .encoder ? "dial.low.fill" : "square.fill")
-                    Text(control.title)
-                    Text(control.pins.map { "D\($0)" }.joined(separator: " · ")).font(.caption.monospaced()).foregroundStyle(.secondary)
-                    Spacer()
-                    Button("Odstranit", role: .destructive) { removeID = control.id }.disabled(!pad.ready || pad.busy)
-                }
-            }
         }
     }
-    private var layout: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            if showSetup {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(showSetup ? "Rozložení prvků" : "Vyberte tlačítko nebo encoder").font(.headline)
-                    Text(showSetup ? "Přetáhněte prvek do buňky. Obsazené buňky si vymění pozici." : "Kliknutím na prvek upravíte jeho zkratky a akce.").foregroundStyle(.secondary)
-                }
-                Spacer()
-                if showSetup { Button("Přidat ovladač") { page = 1 }.disabled(pad.busy || pad.hostBusy) }
-            }
-            }
-            if showSetup {
-                activityGrid
-                controlInspector
-            } else {
-                HStack(alignment: .top, spacing: 20) {
-                    DevicePreview(controls: draft.controls, activity: activity, connected: pad.ready, selected: $selected)
-                        .frame(maxWidth: .infinity)
-                    controlInspector.frame(width: 310)
-                        .padding(20).background(Studio.surface, in: RoundedRectangle(cornerRadius: 20))
-                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Studio.border))
-                }
-            }
-            if showSetup { Text("Rozložení se uloží přímo do MacroPadu.").font(.caption).foregroundStyle(.secondary) }
+    private func controlLayout(editHardware: Bool) -> some View {
+        HStack(alignment: .top, spacing: 20) {
+            DevicePreview(controls: draft.controls, activity: activity, connected: pad.ready, selected: $selected, showsActions: !editHardware)
+                .frame(maxWidth: .infinity)
+                .disabled(kind != nil)
+            controlInspector(editHardware: editHardware).frame(width: 330)
+                .padding(20).background(Studio.surface, in: RoundedRectangle(cornerRadius: 20))
+                .overlay(RoundedRectangle(cornerRadius: 20).stroke(Studio.border))
+                .disabled(kind != nil)
         }
     }
     private var activityGrid: some View {
@@ -349,20 +515,20 @@ struct HardwareWorkspace: View {
             Text("Stisk na MacroPadu rozsvítí prvek zeleně. U encoderu se zobrazí i směr otočení.").font(.caption).foregroundStyle(.secondary)
         }
     }
-    @ViewBuilder private var controlInspector: some View {
+    @ViewBuilder private func controlInspector(editHardware: Bool) -> some View {
             if let index = draft.controls.firstIndex(where: { $0.id == selected }) {
                 VStack(alignment: .leading, spacing: 12) {
-                    StudioSection(title: showSetup ? "Pozice prvku" : "Nastavení akce")
+                    StudioSection(title: editHardware ? "Zapojení a pozice" : "Akce ovladače")
                     HStack(spacing: 12) {
                         Image(systemName: draft.controls[index].kind == .encoder ? "dial.low" : "square")
                             .font(.system(size: 21)).foregroundStyle(Studio.accent)
                             .frame(width: 42, height: 42).background(.black.opacity(0.18), in: RoundedRectangle(cornerRadius: 12))
                         VStack(alignment: .leading, spacing: 4) {
                             Text(draft.controls[index].title).font(.system(size: 18, weight: .semibold, design: .rounded))
-                            Text(draft.controls[index].kind == .encoder ? "Stisk a oba směry otáčení" : "Akce při stisku klávesy").font(.caption).foregroundStyle(.secondary)
+                            Text(editHardware ? (draft.controls[index].kind == .encoder ? "Otočné kolečko se stiskem" : "Tlačítko") : (draft.controls[index].kind == .encoder ? "Stisk a oba směry otáčení" : "Akce při stisku klávesy")).font(.caption).foregroundStyle(.secondary)
                         }
                     }.padding(.bottom, 8)
-                    if showSetup {
+                    if editHardware {
                     HStack {
                         Text("Piny: " + draft.controls[index].pins.map { "D\($0)" }.joined(separator: ", ")).font(.caption.monospaced())
                         Spacer()
@@ -376,8 +542,7 @@ struct HardwareWorkspace: View {
                             ForEach(0..<8) { Text(String($0 + 1)).tag($0) }
                         }
                     }
-                    }
-                    if !showSetup {
+                    } else {
                         ControlActionsEditor(kind: draft.controls[index].kind, actions: Binding(
                             get: { draft.controls.first(where: { $0.id == selected })?.actions ?? [MacroDef(), MacroDef(), MacroDef()] },
                             set: { actions in
@@ -385,11 +550,16 @@ struct HardwareWorkspace: View {
                                 draft.controls[current].actions = actions; dirty = true
                             }))
 
+                        Group {
+                            WheelEditor(device: pad.wheelDeviceKey, control: draft.controls[index].id,
+                                mode: Binding(get: { draft.controls[index].holdMode }, set: { draft.controls[index].holdMode = $0; dirty = true }),
+                                kind: draft.controls[index].kind, firmwareVersion: pad.wheelVersion)
+                        }
                     }
                 }.id(selected).disabled(!pad.ready || pad.busy)
             }
-            else if !showSetup {
-                Text("Vyberte prvek v gridu.").foregroundStyle(.secondary).padding()
+            else {
+                Text("Vyberte tlačítko nebo kolečko v náhledu.").foregroundStyle(.secondary).padding()
             }
     }
     private func begin(_ newKind: ControlKind) {
@@ -425,20 +595,31 @@ struct HardwareWorkspace: View {
                 control.b = clockwise.2 > 0 ? clockwise.1 : clockwise.0
                 control.actions = [MacroDef(kind: .media, media: 0xe2), MacroDef(kind: .media, media: 0xea), MacroDef(kind: .media, media: 0xe9)]
             }
-            draft.controls.append(control); selected = id; dirty = true; self.kind = nil
+            draft.controls.append(control); selected = id; dirty = true; self.kind = nil; addingControl = false; pad.endLearning()
             detail = "Rozpoznáno: \(control.title), piny \(control.pins.map { "D\($0)" }.joined(separator: ", "))."
         } catch { detail = error.localizedDescription }
     }
+    private func verifyFirmware() {
+        guard let expectedFirmware, pad.ready, let version = pad.firmwareVersion,
+              firmwareDevice == nil || firmwareDevice == pad.wheelDeviceKey else { return }
+        let configurationMatches = beforeFirmwareConfig == nil || (try? pad.project.encode()) == beforeFirmwareConfig
+        detail = version == expectedFirmware && configurationMatches
+            ? "Aktualizace ověřena. MacroPad hlásí verzi \(version) a konfigurace je znovu načtená."
+            : "Ověření aktualizace nesouhlasí: verze \(version), očekávaná \(expectedFirmware). Zkontrolujte také konfiguraci zařízení."
+        self.expectedFirmware = nil; firmwareDeadline = nil; firmwareDevice = nil; beforeFirmwareConfig = nil; ota.stopSearch()
+    }
     private func install() {
-        guard let chosenVolume else { return }
+        guard let chosenVolume, !dirty, !pad.busy, !pad.hostBusy, !pad.learning else { return }
+        expectedFirmware = FirmwareInstaller.bundledVersion
+        if pad.ready { firmwareDevice = pad.wheelDeviceKey; beforeFirmwareConfig = try? pad.project.encode() }
         flashing = true; pad.disconnect(); detail = "Nahrávám firmware. Neodpojujte kabel…"
         DispatchQueue.global(qos: .userInitiated).async {
             let result = Result { try FirmwareInstaller.install(on: chosenVolume) }
             DispatchQueue.main.async {
                 flashing = false
                 switch result {
-                case .success: detail = "Firmware byl zapsán. Deska se restartuje. Spárujte ji v Bluetooth a klikněte na Hledat MacroPad."; pad.start()
-                case .failure(let error): detail = "Nahrání se nepodařilo ověřit: \(error.localizedDescription)"
+                case .success: firmwareDeadline = Date().addingTimeInterval(45); detail = "Firmware byl přenesen přes USB. Čekám na opětovné připojení a ověření verze; pokud se pad nepřipojí, klikněte na Hledat MacroPad."; pad.start()
+                case .failure(let error): expectedFirmware = nil; detail = "Nahrání se nepodařilo ověřit: \(error.localizedDescription). Pokud disk zmizel, připojte pad a zkontrolujte verzi před dalším pokusem."
                 }
             }
         }
