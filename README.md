@@ -64,6 +64,14 @@ smazat uložená nastavení; následně znovu nahraj hlavní firmware.
 Pro Bluetooth otevři nastavení Bluetooth na Macu a připoj „MacroPad“.
 Při připojeném datovém USB má ZMK standardně přednostně USB výstup.
 
+## Úsporný režim
+
+Od firmwaru v0.2.0-rc3 pad po 30 sekundách přechází do režimu idle se zachovaným
+Bluetooth spojením. Automatický hluboký spánek po 15 minutách je vypnutý,
+aby první stisk nemusel čekat na opětovné připojení. Klidová spotřeba je proto
+vyšší než dříve; přesná výdrž na baterii zatím není změřená.
+Pro aktualizaci stačí hlavní UF2, bez resetu párování nebo maker.
+
 ## Zapojení
 
 | Součást | XIAO |

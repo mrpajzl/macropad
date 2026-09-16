@@ -1,3 +1,13 @@
+# Oprava prvního stisku po nečinnosti — 16. 9. 2026
+
+- Firmware commit `2309bc6`: `CONFIG_ZMK_SLEEP=n`, idle zůstává 30 sekund.
+- Dřívější deep sleep po 15 minutách odpojoval BLE a první stisk mohl propadnout.
+- Oprava zachovává spojení za cenu vyšší klidové spotřeby; výdrž není změřená.
+- Aktualizace pouze hlavním UF2, bez `settings_reset`, zachová párování i makra.
+- Vydání v0.2.0-rc3; fyzická instalace a kontrola po >15 minutách na baterii čekají.
+
+---
+
 # Bezdrátový konfigurátor — 15. 9. 2026
 
 - Appka i firmware jsou sloučené do `main` na GitHubu.
