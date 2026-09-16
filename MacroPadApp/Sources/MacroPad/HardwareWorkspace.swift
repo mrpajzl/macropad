@@ -64,7 +64,9 @@ struct HardwareWorkspace: View {
                     Button(pad.busy ? "Nahrávám…" : "Dokončit a nahrát do MacroPadu") {
                         saving = true; kind = nil; pad.save(draft)
                     }.buttonStyle(.borderedProminent)
-                        .disabled(!pad.ready || !pad.learning || pad.busy || draft.controls.isEmpty)
+                        .disabled(!pad.ready || pad.busy || draft.controls.isEmpty)
+                    if !pad.ready { Text("Pro uložení připojte MacroPad.").font(.caption).foregroundStyle(.secondary) }
+                    else if draft.controls.isEmpty { Text("Nejdřív přidejte alespoň jeden ovladač.").font(.caption).foregroundStyle(.secondary) }
                 }
             }
         }

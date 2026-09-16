@@ -26,7 +26,8 @@ stejně jako u původního prototypu.
    Tlačítka jsou zpočátku bez akce; přiřaďte jim zkratky, média, myš či mikrofon.
 6. **Dokončit a nahrát do MacroPadu** nahraje celou konfiguraci, atomicky ji
    uloží do paměti desky a znovu načte pro ověření. Univerzální firmware už
-   běží; podle rozložení se nekompiluje ani znovu neflashuje.
+   běží; podle rozložení se nekompiluje ani znovu neflashuje. Uložení si samo
+   vyžádá režim pro zápis; není nutné předem zapínat poznávání.
 
 Během učení se nové běžné akce neposílají. Zrušení, odpojení nebo vypršení
 15sekundového pronájmu vrátí původní provoz. Změny se aktivují až úspěšným

@@ -179,15 +179,21 @@ final class LearningPad: NSObject, ObservableObject, CBCentralManagerDelegate, C
         // Disconnect also cancels the firmware lease immediately, without saving the draft.
         if let peripheral { central.cancelPeripheralConnection(peripheral) }
     }
+    static func uploadPackets(_ data: Data) -> [Data] {
+        var packets = [Data([1]), Data([3])]
+        for offset in stride(from: 0, to: data.count, by: 17) {
+            packets.append(Data([4, UInt8(offset & 255), UInt8(offset >> 8)]) + data.subdata(in: offset..<min(offset+17,data.count)))
+        }
+        packets.append(Data([5]))
+        return packets
+    }
     func save(_ project: HardwareProject) {
-        guard ready, learning, !busy else { return }
+        guard ready, !busy else { return }
         do {
             let data = try project.encode(); expected = data; busy = true; heartbeat?.invalidate()
-            packets = [Data([3])]
-            for offset in stride(from: 0, to: data.count, by: 17) {
-                packets.append(Data([4, UInt8(offset & 255), UInt8(offset >> 8)]) + data.subdata(in: offset..<min(offset+17,data.count)))
-            }
-            packets.append(Data([5])); message = "Ukládám konfiguraci do MacroPadu…"; sendNext()
+            // Acquire/renew the lease as part of this transaction, including after reconnect.
+            packets = Self.uploadPackets(data)
+            message = "Ukládám konfiguraci do MacroPadu…"; sendNext()
         } catch { message = error.localizedDescription }
     }
 }

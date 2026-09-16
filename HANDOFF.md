@@ -1,3 +1,16 @@
+# Aktuální oprava — neaktivní tlačítko uložení
+
+- Footer chybně vyžadoval pad.learning; nově je uložení dostupné pro připojený
+  pad s neprázdným návrhem. Save zařadí příkaz 1 před 3/chunky/5 a sám získá lease.
+- Odpojení a prázdný návrh mají vysvětlení vedle tlačítka.
+- Nový test ověřuje získání lease před stagingem, offsety, celý payload i commit.
+  Test a universal build prošly; firmware se nemění (rc5).
+- Před restartem jsme požádali uživatele uložit stávající návrh přes Upravit
+  konfiguraci → Dokončit a nahrát. Zatím čekáme; appku bez potvrzení nerestartovat.
+- Připravený build MacroPadApp/dist/MacroPad.app; běžící app /Applications/MacroPad.app.
+
+---
+
 # Aktuální stav — živý grid rc5
 
 - HardwareWorkspace zobrazuje zelený stisk/pulz 300 ms a šipku směru encoderu.

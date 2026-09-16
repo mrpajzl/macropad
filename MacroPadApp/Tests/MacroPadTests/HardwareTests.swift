@@ -3,6 +3,22 @@ import CryptoKit
 @testable import MacroPad
 
 final class HardwareTests: XCTestCase {
+    func testUploadAcquiresLeaseBeforeStagingAndCommitsCompletePayload() throws {
+        let project = HardwareProject(controls: [HardwareControl(id: 0, kind: .button, pin: 2)])
+        let data = try project.encode()
+        let packets = LearningPad.uploadPackets(data)
+        XCTAssertEqual(Array(packets.prefix(2)), [Data([1]), Data([3])])
+        XCTAssertEqual(packets.last, Data([5]))
+        var reconstructed = Data()
+        for packet in packets.dropFirst(2).dropLast() {
+            let bytes = [UInt8](packet)
+            XCTAssertLessThanOrEqual(bytes.count, 20)
+            XCTAssertEqual(bytes[0], 4)
+            XCTAssertEqual(Int(bytes[1]) | Int(bytes[2]) << 8, reconstructed.count)
+            reconstructed.append(contentsOf: bytes.dropFirst(3))
+        }
+        XCTAssertEqual(reconstructed, data)
+    }
     func testLiveActivityPressReleaseDirectionAndGap() {
         let controls = [HardwareControl(id: 7, kind: .button, pin: 2),
                         HardwareControl(id: 3, kind: .encoder, pin: 3, a: 4, b: 5, x: 1)]
